@@ -15,5 +15,12 @@ client = discord.Client()
 async def on_ready():
     print(f'{client.user.name} has connected to Discord!')
 
+@client.event
+async def on_message(message):
+    if message.author == client.user:
+        return
+        
+    print(f'{message}')
+    print(f'{message.content}')
 
 client.run(TOKEN)
