@@ -1,2 +1,3 @@
 config/
 *.env
+dickiebase/DickieBot.db
