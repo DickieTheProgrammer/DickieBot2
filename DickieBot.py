@@ -19,7 +19,9 @@ async def on_ready():
 async def on_message(message):
     if message.author == client.user:
         return
-        
+
+    #await message.channel.send('this sends a message')
+
     print(f'{message}')
     print(f'{message.content}')
 
