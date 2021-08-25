@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 #This file handles the interaction with the sqlite database
 
+import random
 import sqlite3 as sql
 from datetime import datetime
 from dateutil import tz
@@ -93,6 +94,16 @@ class Connection:
         
         return(success)
 
-    def getInventory(self,guild):
-        allItems = None
-        success = False
+    def getInventory(self,guild):   
+        itemList = None  
+        print(guild)   
+        try:
+            c = self.conn.execute("""
+                select ITEM from INVENTORY where GUILD = ?
+                """,(guild,))
+            
+            itemList = c.fetchall()
+        except Exception as e:
+            print(e)
+
+        return(itemList)
