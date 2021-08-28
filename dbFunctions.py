@@ -83,7 +83,7 @@ class Connection:
         try:
             c = self.conn.execute("""
                 INSERT INTO INVENTORY (GUILD,ITEM,USER,DATEADDED,USER_ID)
-                values(?,?,?,?,?,?)
+                values(?,?,?,?,?)
                 """,(guild,item,user,self.getCurrentDateTime(),userID))
                 
             self.conn.commit()
@@ -97,7 +97,7 @@ class Connection:
         
         return(success)
 
-    def getInventory(self,guild):   
+    def getInventory(self, guild):   
         itemList = None  
         
         try:
@@ -113,7 +113,7 @@ class Connection:
 
         return(itemList)
 
-    def getInventoryItem(self,guild):
+    def getInventoryItem(self, guild):
         itemList = None
         item = None
 
@@ -143,7 +143,7 @@ class Connection:
 
         return(item)
 
-    def getItemDonor(self,guild,item):
+    def getItemDonor(self, guild, item):
         donors = []
 
         try:
@@ -162,7 +162,7 @@ class Connection:
 
         return(donors)
 
-    def getRandomFact(self,nsfw):
+    def getRandomFact(self, nsfw):
         id = None
         msgOut = None
 
@@ -170,7 +170,9 @@ class Connection:
 
         try:
             c = self.conn.execute(f"""
-                select ID, MSG from facts where DELETED = 0 and TRIGGER is null and NSFW in ("""+','.join(sqlIn)+""") order by random() limit 1
+                select ID, MSG from facts 
+                where DELETED = 0 and TRIGGER is null and NSFW in ("""+','.join(sqlIn)+""") 
+                order by random() limit 1
             """,(sqlIn))
 
             results = c.fetchall()
@@ -182,8 +184,33 @@ class Connection:
             print(e)
 
         return(id,msgOut)
+    
+    def addRandFact(self, response, nsfw, creator, creatorID):
+        success = False
+        known = False
 
-    def addFact(self,trigger,response,nsfw,creator,creatorID):
+        try:
+            c = self.conn.execute("""
+                insert into FACTS (MSG, NSFW, CREATOR, CREATED, CREATOR_ID)
+                values (?,?,?,?,?)    
+            """, (response, nsfw, creator, self.getCurrentDateTime(), creatorID))
+
+            self.conn.commit()
+
+            print('Remembering [' + response + ']')
+            success = True
+        except sql.IntegrityError:
+            success = False
+            known = True
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+
+        return(success, known)
+        
+
+    def addFact(self, trigger, response, nsfw, creator, creatorID):
         success = False
         known = False
 
@@ -200,11 +227,13 @@ class Connection:
             success = False
             known = True
         except Exception as e:
-            print(inspect.stack() + ': ' + e)
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
 
         return(success, known)
 
-    def getFact(self,trigger,nsfw):
+    def getFact(self, trigger, nsfw):
         success = False
         msgOut = None
         id = None
@@ -212,9 +241,20 @@ class Connection:
         sqlIn= [0] if nsfw == 0 else [0,1]
 
         try:
-            c = self.conn.execute(f"""
-                select ID, MSG from FACTS where DELETED = 0 and TRIGGER IS NOT NULL and TRIGGER = ? and NSFW in ("""+','.join(str(n) for n in sqlIn)+""") order by random() limit 1
-            """, (trigger,))
+            if trigger == None:
+                # Random Factoid
+                c = self.conn.execute(f"""
+                    select ID, MSG from FACTS 
+                    where DELETED = 0 and TRIGGER is null and NSFW in ("""+','.join(str(n) for n in sqlIn)+""") 
+                    order by random() limit 1
+                """)
+            else:
+                # Triggered Factoid
+                c = self.conn.execute(f"""
+                    select ID, MSG from FACTS 
+                    where DELETED = 0 and TRIGGER IS NOT NULL and TRIGGER = ? and NSFW in ("""+','.join(str(n) for n in sqlIn)+""") 
+                    order by random() limit 1
+                """, (trigger,))
             results = c.fetchall()
             if len(results)==0:
                 id, msgOut = None, None
@@ -226,6 +266,24 @@ class Connection:
             print(e)
 
         return(id,msgOut)
+
+    def factInfo(self, id):
+        try:
+            c = self.conn.execute("""
+                select ID, TRIGGER, MSG, NSFW, DELETED, CREATOR, CREATED, CNT, LASTCALLED from FACTS where id = ?
+            """, (id,))
+
+            # Convert list of tuples into list
+            results = [item for t in c.fetchall() for item in t]
+            
+        except Exception as e:
+            results = None
+
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+
+        return(results)
 
     def updateLastCalled(self,id):
         try:
