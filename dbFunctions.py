@@ -25,7 +25,7 @@ class Connection:
         try:
             c = self.conn.execute("""drop table HISTORY""")
         except:
-            None
+            pass
         
         #try:
         #    c = self.conn.execute("""drop table INVENTORY""")
@@ -58,8 +58,7 @@ class Connection:
                 USER            VARCHAR2(37),
                 EDITDATE        VARCHAR2(23), /* YYYY-MM-DD HH:MI:SS TZ */
                 USER_ID         VARCHAR2(37),
-                FOREIGN KEY (FACT)
-                    REFERENCES FACTS (id)
+                FOREIGN KEY (ID) REFERENCES FACTS (ID)
             )
         """)
 
@@ -70,12 +69,97 @@ class Connection:
                 ITEM        VARCHAR2(100),
                 USER        VARCHAR2(37),
                 DATEADDED   VARCHAR2(23), /* YYYY-MM-DD HH:MI:SS TZ */
-                USER_ID      VARCHAR2(37)
+                USER_ID     VARCHAR2(37)
+            )
+        """)
+
+        try:
+            c = self.conn.execute("""drop table GUILDSTATE""")
+        except: 
+            pass
+
+        c = self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS GUILDSTATE(
+                GUILD       INTEGER PRIMARY KEY,
+                LASTFACT    INTEGER,
+                BOTROLE     INTEGER NOT NULL DEFAULT 0,
+                RANDFREQ    INTEGER NOT NULL DEFAULT 5,
+                FOREIGN KEY (LASTFACT) REFERENCES FACTS (ID)
             )
         """)
 
     def getCurrentDateTime(self):
         return(datetime.now(tz.gettz('America/Chicago')).strftime('%Y-%m-%d %H:%M:%S %Z'))
+
+    def initGuild(self, guild, roleID):
+        success = False
+
+        try:
+            c = self.conn.execute("""insert into GUILDSTATE (GUILD, BOTROLE) values (?, ?)""", (guild, roleID))
+            self.conn.commit()
+            success = True
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+
+        return(success)
+    
+    def updateFreq(self, guild, freq):
+        success = False
+
+        try: 
+            c = self.conn.execute("""update GUILDSTATE set RANDFREQ = ? where GUILD = ?""", (freq, guild))
+            self.conn.commit()
+            success = True
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+
+        return(success)
+    
+    def getFreq(self, guild):
+        freq = None
+
+        try:
+            c = self.conn.execute("""select RANDFREQ from GUILDSTATE where GUILD = ?""", (guild,))
+            freq = c.fetchall()[0][0]
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+        
+        return(freq)
+    
+    def getBotRole(self, guild):
+        role = None
+
+        try:
+            c = self.conn.execute("""select BOTROLE from GUILDSTATE where GUILD = ?""", (guild,))
+            role = c.fetchall()[0][0]
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+        
+        return(role)
+
+
+    def updateLastFact(self, guild, lastFact):
+        success = False
+
+        try: 
+            c = self.conn.execute("""update GUILDSTATE set LASTFACT = ? where GUILD = ?""", (lastFact, guild))
+            self.conn.commit()
+            success = True
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+
+        return(success)
+
 
     def addToInventory(self, guild, user, item, userID):
         success = False
@@ -84,7 +168,7 @@ class Connection:
             c = self.conn.execute("""
                 INSERT INTO INVENTORY (GUILD,ITEM,USER,DATEADDED,USER_ID)
                 values(?,?,?,?,?)
-                """,(guild,item,user,self.getCurrentDateTime(),userID))
+                """, (guild, item, user, self.getCurrentDateTime(), userID))
                 
             self.conn.commit()
 
@@ -103,7 +187,7 @@ class Connection:
         try:
             c = self.conn.execute("""
                 select ITEM from INVENTORY where GUILD = ?
-                """,(guild,))
+                """, (guild,))
             
             itemList = c.fetchall()
         except Exception as e:
@@ -147,7 +231,7 @@ class Connection:
         donors = []
 
         try:
-            c = self.conn.execute("""select USER_ID from INVENTORY where ITEM = ? and GUILD = ?""",(item,guild))
+            c = self.conn.execute("""select USER_ID from INVENTORY where ITEM = ? and GUILD = ?""", (item, guild))
 
             results = c.fetchall()
             results = [' '.join(elem) for elem in results]
@@ -173,7 +257,7 @@ class Connection:
                 select ID, MSG from facts 
                 where DELETED = 0 and TRIGGER is null and NSFW in ("""+','.join(sqlIn)+""") 
                 order by random() limit 1
-            """,(sqlIn))
+            """, (sqlIn))
 
             results = c.fetchall()
             id = results[0][0]
@@ -287,7 +371,7 @@ class Connection:
 
     def updateLastCalled(self,id):
         try:
-            c = self.conn.execute("""update FACTS set LASTCALLED=?, CNT = CNT + 1 where ID = ?""",(self.getCurrentDateTime(),id))
+            c = self.conn.execute("""update FACTS set LASTCALLED=?, CNT = CNT + 1 where ID = ?""", (self.getCurrentDateTime(), id))
             self.conn.commit()
         except:
-            None
+            pass
