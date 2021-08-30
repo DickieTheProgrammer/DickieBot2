@@ -37,7 +37,12 @@ async def on_ready():
     global botName
     botName = bot.user.name
 
-    for gld in bot.guilds: db.initGuild(gld.id, utils.get(gld.roles,name=botName).id)
+    for gld in bot.guilds: 
+        # Sometimes the bot joins a server and automatically gets a role with the same name as him
+        # If this happens, capture it and save the bot role
+        role = utils.get(gld.roles,name=botName)
+        roleID = 0 if role == None else role.id
+        db.initGuild(gld.id, roleID)
 
     print(f'{bot.user.name} has connected to Discord!')
     print(f'{bot.user} is user')
@@ -45,18 +50,35 @@ async def on_ready():
 
 @bot.event
 async def on_guild_join(guild):
-    guildRole = member.get(guild.roles,name=botName).id
-    db.initGuild(guild.id, guildRole)
+    # Sometimes the bot joins a server and automatically gets a role with the same name as him
+    # If this happens, capture it and save the bot role
+    role = utils.get(guild.roles,name=botName)
+    roleID = 0 if role == None else role.id
+    db.initGuild(guild.id, roleID)
+
+@bot.event
+async def on_member_update(before, after):
+    # Sometimes the bot joins a server and automatically gets a role with the same name as him
+    # If that role is created and assigned AFTER joining at some later time, capture it and save the bot role
+    if after.id == botID and len(before.roles) < len(after.roles):
+        newRole = next(role for role in after.roels if role not in before.roles)
+
+        if newRole.name == botName:
+            db.setBotRole(after.guild.id, newRole.id)
 
 @bot.event
 async def on_message(message):
     msgOut = None
+    botCommand = True if message.content.startswith('!') else False
 
-    if message.author == bot.user:
+    if message.author == bot.user: return
+
+    if isinstance(message.channel, discord.channel.DMChannel): 
+        await message.channel.send("""I don't _do_ "DM"s""")
         return
 
-    print(message)
     print(message.content)
+    print(message)
 
     # Standardize emotes to _<words>_
     msgIn = parseUtil.convertEmote(message.content) 
@@ -76,7 +98,7 @@ async def on_message(message):
             msgOut = 'something went wrong'
         else:
             msgOut = '_added %s to his inventory_' % item
-    elif not msgIn.startswith('!'):
+    elif not botCommand:
         nsfwTag = 1 if message.channel.is_nsfw() else 0
 
         # Check to see if factoid triggered
@@ -121,6 +143,10 @@ async def on_message(message):
                 
     if msgOut != None:
         await message.channel.send(msgOut)
+        
+    #embed = discord.Embed()
+    #embed.description = "This is a hyperlink test. Check out [Google.com](http://www.google.com)"
+    #await message.channel.send(embed = embed)
 
     await bot.process_commands(message)
 

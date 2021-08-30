@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 #This file handles the interaction with the sqlite database
 
-import random
+import re
 import inspect
 import sqlite3 as sql
 from datetime import datetime
 from dateutil import tz
+from discord.channel import TextChannel
 
 class Connection:
 
@@ -15,23 +16,6 @@ class Connection:
         self.conn = sql.connect(self.db)
 
         c = self.conn.cursor()
-
-        ###TESTING ONLY
-        #try:
-        #    c = self.conn.execute("""drop table FACTS""")
-        #except:
-        #    None
-        
-        try:
-            c = self.conn.execute("""drop table HISTORY""")
-        except:
-            pass
-        
-        #try:
-        #    c = self.conn.execute("""drop table INVENTORY""")
-        #except:
-        #    None
-        ###TESTING ONLY
 
         c = self.conn.execute("""
             CREATE TABLE IF NOT EXISTS FACTS (
@@ -48,6 +32,9 @@ class Connection:
                 UNIQUE (MSG, TRIGGER)
             )
         """)
+
+        c = self.conn.execute("""drop table HISTORY""")
+        self.conn.commit()
         c = self.conn.execute("""
             CREATE TABLE IF NOT EXISTS HISTORY (
                 ID              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -55,6 +42,7 @@ class Connection:
                 OLDMSG          VARCHAR2(2000),
                 NEWMSG          VARCHAR2(2000),
                 DELETED         INTEGER NOT NULL DEFAULT 0,
+                NSFW            INTEGER NOT NULL DEFAULT 0,
                 USER            VARCHAR2(37),
                 EDITDATE        VARCHAR2(23), /* YYYY-MM-DD HH:MI:SS TZ */
                 USER_ID         VARCHAR2(37),
@@ -73,11 +61,6 @@ class Connection:
             )
         """)
 
-        try:
-            c = self.conn.execute("""drop table GUILDSTATE""")
-        except: 
-            pass
-
         c = self.conn.execute("""
             CREATE TABLE IF NOT EXISTS GUILDSTATE(
                 GUILD       INTEGER PRIMARY KEY,
@@ -93,9 +76,10 @@ class Connection:
 
     def initGuild(self, guild, roleID):
         success = False
-
         try:
-            c = self.conn.execute("""insert into GUILDSTATE (GUILD, BOTROLE) values (?, ?)""", (guild, roleID))
+            c = self.conn.execute("""
+            insert into GUILDSTATE (GUILD, BOTROLE) 
+            select ?, ? where not exists (select GUILD from GUILDSTATE where GUILD = ?)""", (guild, roleID, guild))
             self.conn.commit()
             success = True
         except Exception as e:
@@ -144,7 +128,20 @@ class Connection:
             print(e)
         
         return(role)
+    
+    def setBotRole(self, guild, roleID):
+        success = False
 
+        try:
+            c = self.conn.execute("""update GUILDSTATE set BOTROLE = ? where GUILD = ?""", (roleID, guild))
+            self.conn.commit()
+            success = True
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+
+        return(success)
 
     def updateLastFact(self, guild, lastFact):
         success = False
@@ -159,7 +156,6 @@ class Connection:
             print(e)
 
         return(success)
-
 
     def addToInventory(self, guild, user, item, userID):
         success = False
@@ -209,9 +205,9 @@ class Connection:
             
             itemList = c.fetchall()
 
-            item = itemList[0][0] if len(itemList)==1 else 'nothing'
+            item = itemList[0][0] if len(itemList) == 1 else 'nothing'
 
-            if item != 'nothing':
+            if len(itemList) == 1:
                 id = itemList[0][1]
 
                 c = self.conn.execute("""
@@ -245,29 +241,6 @@ class Connection:
             donors = None
 
         return(donors)
-
-    def getRandomFact(self, nsfw):
-        id = None
-        msgOut = None
-
-        sqlIn= [0] if nsfw == 0 else [0,1]
-
-        try:
-            c = self.conn.execute(f"""
-                select ID, MSG from facts 
-                where DELETED = 0 and TRIGGER is null and NSFW in ("""+','.join(sqlIn)+""") 
-                order by random() limit 1
-            """, (sqlIn))
-
-            results = c.fetchall()
-            id = results[0][0]
-            msgOut = results[0][1]
-        except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
-
-        return(id,msgOut)
     
     def addRandFact(self, response, nsfw, creator, creatorID):
         success = False
@@ -292,7 +265,6 @@ class Connection:
             print(e)
 
         return(success, known)
-        
 
     def addFact(self, trigger, response, nsfw, creator, creatorID):
         success = False
@@ -339,6 +311,7 @@ class Connection:
                     where DELETED = 0 and TRIGGER IS NOT NULL and TRIGGER = ? and NSFW in ("""+','.join(str(n) for n in sqlIn)+""") 
                     order by random() limit 1
                 """, (trigger,))
+
             results = c.fetchall()
             if len(results)==0:
                 id, msgOut = None, None
@@ -362,7 +335,6 @@ class Connection:
             
         except Exception as e:
             results = None
-
             print(inspect.stack()[0][3])
             print(inspect.stack()[1][3])
             print(e)
@@ -373,5 +345,119 @@ class Connection:
         try:
             c = self.conn.execute("""update FACTS set LASTCALLED=?, CNT = CNT + 1 where ID = ?""", (self.getCurrentDateTime(), id))
             self.conn.commit()
-        except:
-            pass
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+
+    def modFact(self, id, pattern, repl, user, userID):
+        known = matched = success = changed = False
+        oldResp = newResp = None
+
+        try:
+            c = self.conn.execute("""select MSG from FACTS where id = ? limit 1""", (id,))
+            results = c.fetchall()
+            known = True if len(results) != 0 else False
+            oldResp = results[0][0]
+
+            if re.search(r'%s' % pattern, oldResp, re.I) != None:
+                matched = True
+                
+                try:
+                    newResp = re.sub(r'%s' % pattern, repl, oldResp, re.I).strip()
+                    
+                    if newResp != oldResp:
+                        c = self.conn.execute("""update FACTS set MSG = ? where ID = ?""", (newResp, id))
+                        self.conn.commit()
+
+                        c = self.conn.execute("""
+                        insert into HISTORY (FACT, OLDMSG, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
+                        select ID, MSG, ? as NEWMSG, DELETED, NSFW, ? as USER, ? as EDITDATE, ? as USER_ID 
+                        from FACTS where ID = ?""", (newResp, user, self.getCurrentDateTime(), userID, id))
+                        self.conn.commit()
+
+                        success = True
+                        changed = True
+
+                except Exception as e:
+                    success = False
+                    print(inspect.stack()[0][3])
+                    print(inspect.stack()[1][3])
+                    print(e)
+
+        except Exception as e:
+            success = False
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+            
+        return([success, known, matched, changed, oldResp, newResp])
+
+    def getLastFactID(self, guild):
+        lastID = 0
+
+        try:
+            c = self.conn.execute("""select LASTFACT from GUILDSTATE where GUILD = ?""", (guild,))
+            results = c.fetchall()
+            lastID = results[0][0]
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+
+        return(lastID)
+        
+    def delFact(self, id, user, userID):
+        deleted = success = False
+
+        try:
+            print(0)
+            c = self.conn.execute("""select ID from FACTS where DELETED = 1 and ID = ?""", (id,))
+            results = c.fetchall()
+
+            if results != None and len(results) == 1:
+                deleted = True
+            else:
+                c = self.conn.execute("""update FACTS set DELETED = 1 where ID = ?""", (id,))
+
+                c = self.conn.execute("""
+                insert into HISTORY (FACT, OLDMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
+                select ID as FACT, MSG as OLDMSG, DELETED, NSFW, ? as USER, ? as EDITDATE, ? as USER_ID
+                from FACTS where ID =?""", (user, self.getCurrentDateTime(), userID, id))
+                
+                self.conn.commit()
+                
+                success = True
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+        
+        return(success, deleted)
+
+    def undelFact(self, id, user, userID):
+        undeleted = success = False
+        
+        try:
+            c = self.conn.execute("""select ID from FACTS where DELETED = 0 and ID = ?""", (id,))
+            results = c.fetchall()
+
+            if results != None and len(results) == 1:
+                undeleted = True
+            else:
+                c = self.conn.execute("""update FACTS set DELETED = 0 where ID = ?""", (id,))
+
+                c = self.conn.execute("""
+                insert into HISTORY (FACT, OLDMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
+                select ID, MSG, DELETED, NSFW, ? as USER, ? as EDITDATE, ? as USER_ID
+                from facts where ID =?""", (user, self.getCurrentDateTime(), userID, id))
+
+                self.conn.commit()
+                
+                success = True
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+        
+        return(success, undeleted)

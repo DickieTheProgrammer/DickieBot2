@@ -59,9 +59,66 @@ class Factoids(commands.Cog):
         msgOut = f"""Frequency for {ctx.guild.name} set to {self.db.getFreq(ctx.guild.id)}%"""
         await ctx.send(msgOut)
 
-    @commands.command(name = 'wtf', aliases = ['what', 'wth'], description = 'Retrieves info on specified factoid or last factoid if no id provided.', brief = 'Retrieve factoid info')
+    @commands.command(name = 'delfact',
+                    aliases = ['del','baleet','delete'],
+                    description = 'Marks a factoid as deleted, preventing its triggering in chat.',
+                    brief = 'Deletes a factoid')
+    async def delfact(self, ctx, id = None):
+        if not id.isnumeric() and id != None:
+            await ctx.send("This is not a valid factoid ID")
+            return
+
+        fact = self.db.factInfo(id if id != None else self.db.getLastFactID(ctx.guild.id)) if id == None or str(id).isnumeric() else []
+
+        if fact == None:
+            msgOut = f"Something went wrong deleting fact ID {fact[0]}"""
+        elif len(fact) == 0 :
+            msgOut = f"Couldn't find fact ID {fact[0]}"
+        else:
+            result, deleted = self.db.delFact(fact[0], ctx.message.author.display_name, ctx.message.author.id)
+            if not result:
+                if deleted:
+                    msgOut = f"ID {fact[0]} already deleted."
+                else:
+                    msgOut = f"Something went wrong deleting fact ID {fact[0]}"""
+            else:
+                msgOut = f"Fact with ID {fact[0]} has been marked deleted."
+
+        await ctx.send(msgOut)
+        
+    @commands.command(name = 'undelfact',
+                    aliases = ['undel','unbaleet','undelete'],
+                    description = 'Marks a factoid as undeleted, allowing its triggering in chat.',
+                    brief = 'Undeletes a factoid')
+    async def undelfact(self, ctx, id = None):
+        if not id.isnumeric() and id != None:
+            await ctx.send("This is not a valid factoid ID")
+            return
+
+        fact = self.db.factInfo(id if id != None else self.db.getLastFactID(ctx.guild.id)) if id == None or str(id).isnumeric() else []
+
+        if fact == None:
+            msgOut = f"Something went wrong undeleting fact ID {fact[0]}"""
+        elif len(fact) == 0 :
+            msgOut = f"Couldn't find fact ID {fact[0]}"
+        else:
+            result, undeleted = self.db.undelFact(fact[0], ctx.message.author.display_name, ctx.message.author.id)
+            if not result:
+                if undeleted:
+                    msgOut = f"ID {fact[0]} was not deleted."
+                else:
+                    msgOut = f"Something went wrong undeleting fact ID {fact[0]}"""
+            else:
+                msgOut = f"Fact with ID {fact[0]} has been marked undeleted."
+
+        await ctx.send(msgOut)
+
+    @commands.command(name = 'wtf', 
+                    aliases = ['what', 'wth'], 
+                    description = 'Retrieves info on specified factoid or last factoid if no id provided.', 
+                    brief = 'Retrieve factoid info')
     async def wtf(self, ctx, id: typing.Optional[int] = None):
-        fact = self.db.factInfo(id if id != None else self.lastFact[ctx.guild.id]) if id == None or str(id).isnumeric() else []
+        fact = self.db.factInfo(id if id != None else self.db.getLastFactID(ctx.guild.id)) if id == None or str(id).isnumeric() else []
 
         if fact == None:
             msgOut = f'Something went wrong retrieving fact info for ID {id}'
@@ -106,6 +163,44 @@ class Factoids(commands.Cog):
 
         await ctx.send(msgOut)
 
+    @commands.command(name = 'mod',
+                    aliases = ['modfact','modthat'],
+                    description = """
+                    Allows you to modify a factoid response by providing a substitution regex formatted s/pattern/replacement
+                    !mod <id> {substitution string}, if id blank, updates last called factoid""",
+                    brief = 'Modify factoid response')
+    async def mod(self, ctx, id: typing.Optional[int] = 0, *, regEx):
+        lastID = self.db.getLastFactID(ctx.guild.id) if id == 0 else id
+
+        try:
+            if regEx.endswith('//'):
+                s, pattern = regEx.strip('/').split('/')
+                repl = ''
+            else:
+                s, pattern, repl = regEx.strip('g').strip('/').split('/')
+        except Exception as e:
+            await ctx.send("Syntax is !mod <id> {substitution string in form s/pattern/replacement}")
+            return
+
+        results = self.db.modFact(lastID, pattern, repl, ctx.message.author.display_name, ctx.message.author.id)
+        
+        # results returned list = [success, known, matched, changed, oldResp, newResp]
+        if not results[1]:
+            msgOut = f"Fact ID {lastID} not found."
+        elif not results[2]:
+            msgOut = f"""Pattern "{pattern}" not found."""
+        elif not results[3]:
+            msgOut = f"""Message wasn't changed by this substitution."""
+        elif not results[0]:
+            msgOut = f"Something went wrong modifying fact id {lastID}"
+        else:
+            msgOut = f"""Successfully changed fact {id} response from 
+{results[4]}
+to
+{results[5]}"""
+
+        await ctx.send(msgOut)
+
     @commands.command(name = 'on', 
                 aliases = ['onnsfw'], 
                 description = f"""Assign a response to triggering phrase. !on<nsfw> {{trigger}} -say {{response}}. 
@@ -123,7 +218,7 @@ class Factoids(commands.Cog):
         response = ''.join(parts[1:]).strip()
         botCommand = True if trigger.startswith('!') or response.startswith('!') else False
         
-        cleanTrigger = parseUtil.mentionToSelfVar(trigger, self.db.getBotRole(ctx.guild.id), self.bot.id)
+        cleanTrigger = parseUtil.mentionToSelfVar(trigger, self.db.getBotRole(ctx.guild.id), self.bot.user.id)
         triggerParts = cleanTrigger.split('$self')
         cleanTrigger = '$self'.join(e.strip(string.punctuation).lower() for e in triggerParts).strip()
 
