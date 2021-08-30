@@ -1,3 +1,5 @@
 config/
 *.env
 dickiebase/DickieBot.db
+__pycache__/
+cogs/__pycache__/
