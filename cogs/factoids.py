@@ -89,7 +89,6 @@ class Factoids(commands.Cog):
                 msgOut = f"Fact with ID {fact[0]} has been marked {delDesc}d."
 
         await ctx.send(msgOut)
-        
     @commands.command(name = 'wtf', 
                     aliases = ['what', 'wth'], 
                     description = 'Retrieves info on specified factoid or last factoid if no id provided.', 

@@ -81,7 +81,7 @@ class Connection:
             insert into GUILDSTATE (GUILD, BOTROLE) 
             select ?, ? where not exists (select GUILD from GUILDSTATE where GUILD = ?)""", (guild, roleID, guild))
             self.conn.commit()
-
+            
             success = True
         except Exception as e:
             print(inspect.stack()[0][3])
