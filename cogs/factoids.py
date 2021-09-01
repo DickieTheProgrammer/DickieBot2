@@ -42,8 +42,8 @@ class Factoids(commands.Cog):
         user = ctx.message.author.id
 
         try:
-            if str(frequency).isnumeric() and (self.bot.owner_id == user or ctx.guild.owner_id == user):
-                self.randPerc[ctx.guild.id] = int(frequency)
+            if self.bot.owner_id == user or ctx.guild.owner_id == user:
+                self.db.updateFreq(ctx.guild.id, frequency)
                 msgOut = f"""You're the boss. Frequency for {ctx.guild.name} set to {frequency}%"""
             else:
                 msgOut = random.sample(self.noList,1)[0]
@@ -63,7 +63,7 @@ class Factoids(commands.Cog):
     @commands.command(name = 'delete',
                     aliases = ['del','undel','undelete','baleet','unbaleet'],
                     description = 'Toggles deleted flag on specified factoid or most recent triggered factoid if none specified.',
-                    brief = 'Toggles deleted/undeleted')
+                    brief = 'or !undelete, toggles deleted/undeleted')
     async def delfact(self, ctx, id = None):
         if not id.isnumeric() and id != None:
             await ctx.send("This is not a valid factoid ID")
@@ -238,7 +238,8 @@ to
 
     @commands.command(name = 'hist',
                     aliases = ['gethist'],
-                    description = """Returns change log for factoid provided or last triggered factoid if none provided.""",
+                    description = """Returns change log for factoid provided or last triggered factoid if none provided.
+                    The change log pages displayed in chat are navigable only by the caller and will eventually self-destruct after 60s of inactivity.""",
                     brief = 'Get factoid change log')
     async def hist(self, ctx, id: typing.Optional[int] = 0):
         #return # disabling for now

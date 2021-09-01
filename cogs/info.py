@@ -2,6 +2,10 @@ import discord
 import requests
 import asyncio
 import json
+import parseUtil
+import wikipedia
+import random
+import inspect
 
 from discord.ext import commands
 
@@ -14,11 +18,37 @@ class Information(commands.Cog):
     async def on_ready(self):
         print("Information cog loaded")
 
-    @commands.command(name = 'ud', 
-                    description="Retrieves Urban Dictionary definition of search term. Omitting search term returns list of random definitions.", 
-                    brief='Get Urban Dictionary definition')
-    async def ud(self, ctx, *, searchTerm = None):
+    @commands.command(name = 'wiki',
+                    description = """Retrieves Wikipedia summary for the provided search term. Omitting search term returns random article summary.""",
+                    brief = 'Get Wikipedia article summary')
+    async def wiki(self, ctx, *, searchTerm = None):
+        if searchTerm == None:
+            page = wikipedia.page(wikipedia.random(pages=1))
+        else:
+            try:
+                page = wikipedia.page(searchTerm)
+            except wikipedia.DisambiguationError as e:
+                choice = random.choice(e.options)
+                print(f"""{searchTerm} didn't work, trying {choice}""")
+                page = wikipedia.page(choice)
+            except Exception as e:
+                print(inspect.stack()[0][3])
+                print(inspect.stack()[1][3])
+                print(e)
+                return
+        
+        msgEmbed = discord.Embed(title = f"{page.title}",
+                            url = f"{page.url}",
+                            description = f"{page.summary}",
+                            color = discord.Color.blue())
 
+        await ctx.send(embed = msgEmbed)
+
+    @commands.command(name = 'ud', 
+                    description = """Retrieves Urban Dictionary definition of search term. Omitting search term returns list of random definitions.
+                    The pages of definitions displayed in chat are navigable only by the caller and will eventually self-destruct after 60s of inactivity.""", 
+                    brief = 'Get Urban Dictionary definition')
+    async def ud(self, ctx, *, searchTerm = None):
         if ctx.channel.nsfw == False:
             await ctx.send("This channel is SFW. Urban dictionary... is not.")
             return
@@ -37,10 +67,13 @@ class Information(commands.Cog):
             await ctx.send(f'Response code {response.status_code} for <{URL}>')
             return
         
+        if response.content == """{"error":404}""":
+            await ctx.send(f'Response code 404 for <{URL}>')
+            return
+
         results = json.loads(response.content)["list"]
 
         pages = len(results)
-        print(pages)
         curPage = 1
 
         for rec in range(pages):
@@ -53,13 +86,13 @@ class Information(commands.Cog):
 
         msgEmbed = discord.Embed(title = f"{contents[curPage-1]['word']}",
                             url = f"{contents[curPage-1]['permalink']}",
-                            description = f"{contents[curPage-1]['definition']}",
+                            description = parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['definition']}"),
                             color = discord.Color.blue())
         msgEmbed.add_field(name = "Example",
-                        value = f"{contents[curPage-1]['example']}",
+                        value = parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['example']}"),
                         inline = False)
         
-        message = await ctx.send(embed=msgEmbed)
+        message = await ctx.send(embed = msgEmbed)
 
         await message.add_reaction("◀️")
         await message.add_reaction("▶️")
@@ -76,13 +109,13 @@ class Information(commands.Cog):
 
                     msgEmbed = discord.Embed(title = f"{contents[curPage-1]['word']}",
                             url = f"{contents[curPage-1]['permalink']}",
-                            description = f"{contents[curPage-1]['definition']}",
+                            description = parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['definition']}"),
                             color = discord.Color.blue())
                     msgEmbed.add_field(name = "Example",
-                                    value = f"{contents[curPage-1]['example']}",
-                                    inline = False)   
+                                    value = parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['example']}"),
+                                    inline = False)  
 
-                    await message.edit(embed=msgEmbed)
+                    await message.edit(embed = msgEmbed)
                     await message.remove_reaction(reaction, user)
 
                 elif str(reaction.emoji) == "◀️" and curPage > 1:
@@ -90,13 +123,13 @@ class Information(commands.Cog):
 
                     msgEmbed = discord.Embed(title = f"{contents[curPage-1]['word']}",
                             url = f"{contents[curPage-1]['permalink']}",
-                            description = f"{contents[curPage-1]['definition']}",
+                            description = parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['definition']}"),
                             color = discord.Color.blue())
                     msgEmbed.add_field(name = "Example",
-                                    value = f"{contents[curPage-1]['example']}",
-                                    inline = False)    
+                                    value = parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['example']}"),
+                                    inline = False)     
                                                     
-                    await message.edit(embed=msgEmbed)
+                    await message.edit(embed = msgEmbed)
                     await message.remove_reaction(reaction, user)
 
                 else:

@@ -246,6 +246,7 @@ class Connection:
     def addRandFact(self, response, nsfw, creator, creatorID):
         success = False
         known = False
+        maxID = None
 
         try:
             c = self.conn.execute("""
@@ -260,7 +261,6 @@ class Connection:
             c = self.conn.execute("""
             insert into HISTORY (FACT, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
             (select ID, MSG, DELETED, NSFW, USER, CREATED, USER_ID from FACTS where ID = ?)""", (maxID))
-
             self.conn.commit()
 
             print(f'Remembering {maxID}:[{response}]')
@@ -278,6 +278,7 @@ class Connection:
     def addFact(self, trigger, response, nsfw, creator, creatorID):
         success = False
         known = False
+        maxID = None
 
         try:
             c = self.conn.execute("""
@@ -292,7 +293,6 @@ class Connection:
             c = self.conn.execute("""
             insert into HISTORY (FACT, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
             (select ID, MSG, DELETED, NSFW, USER, CREATED, USER_ID from FACTS where ID = ?)""", (maxID))
-
             self.conn.commit()
 
             print(f'Remembering {maxID}: [{trigger}] is [{response}]')
