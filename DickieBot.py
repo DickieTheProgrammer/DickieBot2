@@ -8,9 +8,7 @@ import random
 import string
 import parseUtil
 
-from cogs import general
-from cogs import factoids
-from cogs import inventory
+from cogs import general, factoids, inventory, info
 
 from discord import member, utils
 from dbFunctions import Connection
@@ -77,6 +75,7 @@ async def on_message(message):
         await message.channel.send("""I don't _do_ "DM"s""")
         return
 
+    print("===========================================================")
     print(message.content)
     print(message)
 
@@ -106,17 +105,16 @@ async def on_message(message):
         msgIn = '$self'.join(e.strip(string.punctuation).lower() for e in msgInParts).strip()
 
         id, msgOut = db.getFact(msgIn,nsfwTag)
-        if id != None:
-            db.updateLastFact(message.guild.id, id)
+        ###if id != None: db.updateLastFact(message.guild.id, id)
 
         # If factoid not triggered by incoming message, check for random
         randomNum = random.randint(1,100)
-        if id == None and randomNum <= db.getFreq(message.guild.id):
-            id, msgOut = db.getFact(None,nsfwTag)
-            db.updateLastFact(message.guild.id, id)
+        print(f"Random number {randomNum} <= {db.getFreq(message.guild.id)} ({message.guild.name})?")
+        if id == None and randomNum <= db.getFreq(message.guild.id): id, msgOut = db.getFact(None,nsfwTag)
 
         # Update called metrics for factoid if called
         if id != None:
+            db.updateLastFact(message.guild.id, id)
             db.updateLastCalled(id)
 
         # Replace $nick variables with message author
@@ -127,12 +125,15 @@ async def on_message(message):
 
         # Replace $rand variables each with random guild member
         guildMembers = message.guild.members
-        for m in guildMembers:
+        for m in guildMembers: 
             if m.status != 'online' and m.status != 'idle': guildMembers.remove(m)
 
+        # Replace $rand variables each with random guild member or "nobody" if $rands outnumber guild members
         randCount = msgOut.count('$rand') if msgOut != None else 0
+        randList = random.sample(guildMembers,randCount)
         for i in range(randCount):
-            randUser = '<@!' + str(random.sample(guildMembers,1)[0].id) + '>'
+            if i >= len(randList): randList.append('nobody')
+            randUser = '<@!' + str(randList[i-1].id) + '>'
             msgOut = msgOut.replace('$rand', randUser, 1)
 
         # Replace $item variables each with random inventory item
@@ -143,7 +144,7 @@ async def on_message(message):
                 
     if msgOut != None:
         await message.channel.send(msgOut)
-        
+
     #embed = discord.Embed()
     #embed.description = "This is a hyperlink test. Check out [Google.com](http://www.google.com)"
     #await message.channel.send(embed = embed)
@@ -151,6 +152,7 @@ async def on_message(message):
     await bot.process_commands(message)
 
 bot.add_cog(general.General(bot))
+bot.add_cog(info.Information(bot))
 bot.add_cog(inventory.Inventory(bot, db))
 bot.add_cog(factoids.Factoids(bot, db))
 bot.run(TOKEN)
