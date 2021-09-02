@@ -1,7 +1,6 @@
 import random
-
-from discord.ext import commands
 import dbFunctions
+from discord.ext import commands
 
 class Inventory(commands.Cog):
 

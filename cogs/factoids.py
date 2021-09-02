@@ -2,10 +2,11 @@ import typing
 import random
 import string
 import asyncio
-
-from discord.ext import commands
+import math
+import time
 import dbFunctions
 import parseUtil
+from discord.ext import commands
 
 DEFAULTPERC = 5
 
@@ -43,8 +44,8 @@ class Factoids(commands.Cog):
 
         try:
             if self.bot.owner_id == user or ctx.guild.owner_id == user:
-                self.db.updateFreq(ctx.guild.id, frequency)
-                msgOut = f"""You're the boss. Frequency for {ctx.guild.name} set to {frequency}%"""
+                self.db.updateFreq(ctx.guild.id, frequency, ctx.channel.id)
+                msgOut = f"""You're the boss. Frequency for {ctx.channel.name} set to {frequency}%"""
             else:
                 msgOut = random.sample(self.noList,1)[0]
         except Exception as e:
@@ -57,7 +58,7 @@ class Factoids(commands.Cog):
                 description = """Returns the frequency with which I will respond to non-command messages with random factoids. Number is out of 100.""",
                 brief = "Get random frequency of server")
     async def freq(self, ctx):
-        msgOut = f"""Frequency for {ctx.guild.name} set to {self.db.getFreq(ctx.guild.id)}%"""
+        msgOut = f"""Random frequency for {ctx.channel.name} set to {self.db.getFreq(ctx.guild.id, ctx.channel.id)}%"""
         await ctx.send(msgOut)
 
     @commands.command(name = 'delete',
@@ -94,14 +95,15 @@ class Factoids(commands.Cog):
                     description = 'Retrieves info on specified factoid or last factoid if no id provided.', 
                     brief = 'Retrieve factoid info')
     async def wtf(self, ctx, id: typing.Optional[int] = None):
-        fact = self.db.factInfo(id if id != None else self.db.getLastFactID(ctx.guild.id)) if id == None or str(id).isnumeric() else []
+        fact = self.db.factInfo(id if id != None else self.db.getLastFactID(ctx.guild.id, ctx.channel.id)) if id == None or str(id).isnumeric() else []
 
         if fact == None:
             msgOut = f'Something went wrong retrieving fact info for ID {id}'
         elif len(fact) == 0:
             msgOut = """¯\_(ツ)_/¯"""
         else: 
-            msgOut = f"""ID: {str(fact[0])}\nTrigger: {fact[1] if fact[1] != None else "*None*"}\nResponse: {fact[2]}\nNSFW: {str(fact[3]==1)}\nDeleted: {str(fact[4]==1)}\nCreator: {fact[5]}\nCreated: {fact[6]}\nTimes Triggered: {fact[7]}\nLast Triggered: {fact[8]}
+            st = '||' if fact[3]==1 and not ctx.channel.is_nsfw else ''
+            msgOut = f"""ID: {str(fact[0])}\nTrigger: {st}{fact[1] if fact[1] != None else "*None*"}{st}\nResponse: {st}{fact[2]}{st}\nNSFW: {str(fact[3]==1)}\nDeleted: {str(fact[4]==1)}\nCreator: {fact[5]}\nCreated: {fact[6]}\nTimes Triggered: {fact[7]}\nLast Triggered: {fact[8]}
             """
         await ctx.send(msgOut)
 
@@ -207,7 +209,7 @@ to
             response = ''.join(parts[1:]).strip()
             botCommand = True if trigger.startswith('!') or response.startswith('!') else False
             
-            cleanTrigger = parseUtil.mentionToSelfVar(trigger, self.db.getBotRole(ctx.guild.id), self.bot.user.id)
+            cleanTrigger = parseUtil.mentionToSelfVar(trigger, self.db.getBotRole(ctx.guild.id, ctx.channel.id), self.bot.user.id)
             triggerParts = cleanTrigger.split('$self')
             cleanTrigger = '$self'.join(e.strip(string.punctuation).lower() for e in triggerParts).strip()
 
@@ -217,9 +219,7 @@ to
                 msgOut = 'Trigger must be >= 4 alphanumeric characters'
             else:    
                 if trigger.startswith('_') and trigger.endswith('_'):
-                    cleanTrigger = '_' + trigger + '_'
-
-                print(ctx.invoked_with)
+                    cleanTrigger = '_' + cleanTrigger + '_'
 
                 nsfw = 1 if ctx.invoked_with == 'onnsfw' else 0
 
@@ -241,7 +241,6 @@ to
                     The change log pages displayed in chat are navigable only by the caller and will eventually self-destruct after 60s of inactivity.""",
                     brief = 'Get factoid change log')
     async def hist(self, ctx, id: typing.Optional[int] = 0):
-        #return # disabling for now
         searchID = self.db.getLastFactID(ctx.guild.id) if id == 0 else id
         contents = []
         
@@ -257,14 +256,75 @@ to
         pages = len(history)
         curPage = 1
 
+        st = '||' if history[0][4]==1 and not ctx.channel.is_nsfw else ''
         for rec in range(pages):
-            contents.append(f"""**{len(pages)} Pages**\n\nID: {history[rec-1][0]}\nTrigger: {history[rec-1][1]}\nOldMsg: {history[rec-1][2]}\nNewMsg: {history[rec-1][3]}\nDeleted: {history[rec-1][4]==1}\nNSFW: {history[rec-1][5]==1}\nUser: {history[rec-1][6]}\nDate: {history[rec-1][7]}
+            contents.append(f"""Page {curPage}/{pages}:\nID: {history[rec-1][0]}\nTrigger: {st}{history[rec-1][1]}{st}\nOldMsg: {st}{history[rec-1][2]}{st}\nNewMsg: {st}{history[rec-1][3]}{st}\nDeleted: {history[rec-1][4]==1}\nNSFW: {history[rec-1][5]==1}\nUser: {history[rec-1][6]}\nDate: {history[rec-1][7]}
             """)
 
         message = await ctx.send(contents[curPage-1])
 
         await message.add_reaction("◀️")
         await message.add_reaction("▶️")
+
+        def check(reaction,user):
+            return user == ctx.author and str(reaction.emoji) in ["◀️", "▶️"]
+        
+        while True:
+            try:
+                reaction, user = await self.bot.wait_for("reaction_add", timeout=60, check=check)
+
+                if str(reaction.emoji) == "▶️" and curPage != pages:
+                    curPage += 1
+                    await message.edit(content=f"Page {curPage}/{pages}:\n{contents[curPage-1]}")
+                    await message.remove_reaction(reaction, user)
+
+                elif str(reaction.emoji) == "◀️" and curPage > 1:
+                    curPage -= 1
+                    await message.edit(content=f"Page {curPage}/{pages}:\n{contents[curPage-1]}")
+                    await message.remove_reaction(reaction, user)
+
+                else:
+                    await message.remove_reaction(reaction, user)
+                    # removes reactions if the user tries to go forward on the last page or
+                    # backwards on the first page
+            except asyncio.TimeoutError:
+                await message.delete()
+                break
+
+    @commands.command(name='shutup',
+                    aliases=['shaddup', 'stfu'],
+                    description = """Silences triggering of factoids for the duration provided, or 5 minutes if no duration provided. Max duration 30 min.""",
+                    brief = """Prevents triggering of factoids""")
+    async def shutup(self, ctx, shutUpDuration: typing.Optional[int]  = 5):
+        found, duration, started = self.db.getShutUpDuration(ctx.guild.id, ctx.channel.id)
+
+        if found:
+            timeLeft = (duration*60) - (time.time() - started)
+
+            if timeLeft < 0:
+                msgOut = """Strange. I should be done with"""
+            elif timeLeft < 10:
+                msgOut =f"""Almost done with"""
+            elif timeLeft < 30:
+                msgOut = """I've got less than 30 seconds of"""
+            elif timeLeft < 60:
+                msgOut = """I've got less than a minute left of"""
+            elif timeLeft < 120:
+                msgOut = """I've got over a minute left of"""
+            else:
+                msgOut = f"""I've got over {math.floor(timeLeft/60)} minutes left of"""
+
+            msgOut = msgOut + f" my current {duration} minute cooldown."
+        else:
+            if shutUpDuration > 30 or shutUpDuration < 1:
+                msgOut = "I'm just gonna be quiet for 5 minutes."
+            else:
+                msgOut = f"""Okay, I'll shut up for {shutUpDuration} {'minutes' if shutUpDuration != 1 else 'minute'}."""
+
+            success = self.db.addShutUpRecord(ctx.guild.id, ctx.channel.id, shutUpDuration)
+
+            if not success:
+                msgOut = f"""Something went wrong shutting up for {shutUpDuration} {'minutes' if shutUpDuration != 1 else 'minute'}."""
 
         def check(reaction,user):
             return user == ctx.author and str(reaction.emoji) in ["◀️", "▶️"]

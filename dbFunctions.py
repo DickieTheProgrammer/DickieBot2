@@ -3,6 +3,7 @@
 
 import re
 import inspect
+import time
 import sqlite3 as sql
 from datetime import datetime
 from dateutil import tz
@@ -14,8 +15,6 @@ class Connection:
         self.db = db
         
         self.conn = sql.connect(self.db)
-
-        c = self.conn.cursor()
 
         c = self.conn.execute("""
             CREATE TABLE IF NOT EXISTS FACTS (
@@ -33,8 +32,6 @@ class Connection:
             )
         """)
 
-        c = self.conn.execute("""drop table HISTORY""")
-        self.conn.commit()
         c = self.conn.execute("""
             CREATE TABLE IF NOT EXISTS HISTORY (
                 ID              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -46,7 +43,7 @@ class Connection:
                 USER            VARCHAR2(37),
                 EDITDATE        VARCHAR2(23), /* YYYY-MM-DD HH:MI:SS TZ */
                 USER_ID         VARCHAR2(37),
-                FOREIGN KEY (ID) REFERENCES FACTS (ID)
+                FOREIGN KEY (FACT) REFERENCES FACTS (ID)
             )
         """)
 
@@ -63,23 +60,90 @@ class Connection:
 
         c = self.conn.execute("""
             CREATE TABLE IF NOT EXISTS GUILDSTATE(
-                GUILD       INTEGER PRIMARY KEY,
+                GUILD       INTEGER NOT NULL,
                 LASTFACT    INTEGER,
                 BOTROLE     INTEGER NOT NULL DEFAULT 0,
                 RANDFREQ    INTEGER NOT NULL DEFAULT 5,
-                FOREIGN KEY (LASTFACT) REFERENCES FACTS (ID)
+                CHANNEL     INTEGER NOT NULL,
+                FOREIGN KEY (LASTFACT) REFERENCES FACTS (ID),
+                PRIMARY KEY (GUILD, CHANNEL)
             )
         """)
+
+        c = self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS SILENCED(
+                GUILD       INTEGER,
+                CHANNEL     INTEGER,
+                DURATION    INTEGER,
+                STARTED     REAL,
+                PRIMARY KEY (GUILD, CHANNEL)
+            )
+        """)        
+
+    def close(self):
+        self.conn.close()
 
     def getCurrentDateTime(self):
         return(datetime.now(tz.gettz('America/Chicago')).strftime('%Y-%m-%d %H:%M:%S %Z'))
 
-    def initGuild(self, guild, roleID):
+    def getShutUpDuration(self, guild, channel):
+        found = False
+        duration = started = None
+
+        try:
+            c = self.conn.execute("""select DURATION, STARTED from SILENCED where GUILD = ? and CHANNEL = ?""", (guild, channel))
+
+            results = c.fetchall()
+
+            if len(results) > 0:
+                duration = results[0][0]
+                started = results[0][1]
+                if time.time() - started < (duration*60):
+                    found = True
+                else:
+                    self.delShutUpRecord(guild, channel)
+
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+
+        return found, duration, started
+
+    def delShutUpRecord(self, guild, channel):
+        try:
+            c = self.conn.execute("""delete from SILENCED where GUILD = ? and CHANNEL = ?""", (guild, channel))
+            self.conn.commit()
+            success=True
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+
+    def addShutUpRecord(self, guild, channel, duration):
+        success = False
+
+        try:
+            c = self.conn.execute("""
+            insert into SILENCED (GUILD, CHANNEL, DURATION, STARTED)
+            values (?, ?, ?, ?)
+            """, (guild, channel, duration, time.time()))
+            self.conn.commit()
+            success=True
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+        
+        return(success)
+
+    def initGuild(self, guild, roleID, channel):
         success = False
         try:
             c = self.conn.execute("""
-            insert into GUILDSTATE (GUILD, BOTROLE) 
-            select ?, ? where not exists (select GUILD from GUILDSTATE where GUILD = ?)""", (guild, roleID, guild))
+            insert into GUILDSTATE (GUILD, BOTROLE, CHANNEL) 
+            select ?, ?, ? where not exists (select GUILD from GUILDSTATE where GUILD = ? and CHANNEL = ?)
+            """, (guild, roleID, channel, guild, channel))
             self.conn.commit()
             
             success = True
@@ -90,11 +154,11 @@ class Connection:
 
         return(success)
     
-    def updateFreq(self, guild, freq):
+    def updateFreq(self, guild, freq, channel):
         success = False
 
         try: 
-            c = self.conn.execute("""update GUILDSTATE set RANDFREQ = ? where GUILD = ?""", (freq, guild))
+            c = self.conn.execute("""update GUILDSTATE set RANDFREQ = ? where GUILD = ? and CHANNEL = ?""", (freq, guild, channel))
             self.conn.commit()
             success = True
         except Exception as e:
@@ -104,11 +168,11 @@ class Connection:
 
         return(success)
     
-    def getFreq(self, guild):
+    def getFreq(self, guild, channel):
         freq = None
 
         try:
-            c = self.conn.execute("""select RANDFREQ from GUILDSTATE where GUILD = ?""", (guild,))
+            c = self.conn.execute("""select RANDFREQ from GUILDSTATE where GUILD = ? and CHANNEL = ?""", (guild, channel))
             freq = c.fetchall()[0][0]
         except Exception as e:
             print(inspect.stack()[0][3])
@@ -117,11 +181,11 @@ class Connection:
         
         return(freq)
     
-    def getBotRole(self, guild):
+    def getBotRole(self, guild, channel):
         role = None
 
         try:
-            c = self.conn.execute("""select BOTROLE from GUILDSTATE where GUILD = ?""", (guild,))
+            c = self.conn.execute("""select BOTROLE from GUILDSTATE where GUILD = ? and CHANNEL = ?""", (guild, channel))
             role = c.fetchall()[0][0]
         except Exception as e:
             print(inspect.stack()[0][3])
@@ -130,11 +194,11 @@ class Connection:
         
         return(role)
     
-    def setBotRole(self, guild, roleID):
+    def setBotRole(self, guild, roleID, channel):
         success = False
 
         try:
-            c = self.conn.execute("""update GUILDSTATE set BOTROLE = ? where GUILD = ?""", (roleID, guild))
+            c = self.conn.execute("""update GUILDSTATE set BOTROLE = ? where GUILD = ? and CHANNEL = ?""", (roleID, guild, channel))
             self.conn.commit()
             success = True
         except Exception as e:
@@ -144,11 +208,11 @@ class Connection:
 
         return(success)
 
-    def updateLastFact(self, guild, lastFact):
+    def updateLastFact(self, guild, lastFact, channel):
         success = False
 
         try: 
-            c = self.conn.execute("""update GUILDSTATE set LASTFACT = ? where GUILD = ?""", (lastFact, guild))
+            c = self.conn.execute("""update GUILDSTATE set LASTFACT = ? where GUILD = ? and CHANNEL = ?""", (lastFact, guild, channel))
             self.conn.commit()
             success = True
         except Exception as e:
@@ -166,7 +230,6 @@ class Connection:
             INSERT INTO INVENTORY (GUILD,ITEM,USER,DATEADDED,USER_ID)
             values(?,?,?,?,?)
             """, (guild, item, user, self.getCurrentDateTime(), userID))
-                
             self.conn.commit()
 
             print('Given [' + item + ']')
@@ -182,9 +245,7 @@ class Connection:
         itemList = None  
         
         try:
-            c = self.conn.execute("""
-            select ITEM from INVENTORY where GUILD = ?
-            """, (guild,))
+            c = self.conn.execute("""select ITEM from INVENTORY where GUILD = ?""", (guild,))
             
             itemList = c.fetchall()
         except Exception as e:
@@ -211,9 +272,7 @@ class Connection:
             if len(itemList) == 1:
                 id = itemList[0][1]
 
-                c = self.conn.execute("""
-                delete from INVENTORY where ID = ?
-                """,(id,))
+                c = self.conn.execute("""delete from INVENTORY where ID = ?""",(id,))
 
                 self.conn.commit()
 
@@ -253,14 +312,16 @@ class Connection:
             insert into FACTS (MSG, NSFW, CREATOR, CREATED, CREATOR_ID)
             values (?,?,?,?,?)    
             """, (response, nsfw, creator, self.getCurrentDateTime(), creatorID))
+            self.conn.commit()
 
             c = self.conn.execute("""select max(ID) from FACTS where MSG = ?""", (response,))
-            results = c.fetchall
+            results = c.fetchall()
             maxID = results[0][0]
 
             c = self.conn.execute("""
             insert into HISTORY (FACT, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
-            (select ID, MSG, DELETED, NSFW, USER, CREATED, USER_ID from FACTS where ID = ?)""", (maxID))
+            select ID, MSG, DELETED, NSFW, CREATOR, CREATED, CREATOR_ID from FACTS where ID = ?
+            """, (maxID,))
             self.conn.commit()
 
             print(f'Remembering {maxID}:[{response}]')
@@ -295,6 +356,15 @@ class Connection:
             (select ID, MSG, DELETED, NSFW, USER, CREATED, USER_ID from FACTS where ID = ?)""", (maxID))
             self.conn.commit()
 
+            c = self.conn.execute("""select max(ID) from FACTS where MSG = ?""", (response,))
+            results = c.fetchall()
+            maxID = results[0][0]
+
+            c = self.conn.execute("""
+            insert into HISTORY (FACT, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
+            select ID, MSG, DELETED, NSFW, CREATOR, CREATED, CREATOR_ID from FACTS where ID = ?
+            """, (maxID,))
+            self.conn.commit()
             print(f'Remembering {maxID}: [{trigger}] is [{response}]')
             success = True
         except sql.IntegrityError:
@@ -331,6 +401,7 @@ class Connection:
                 """, (trigger,))
 
             results = c.fetchall()
+            
             if len(results)==0:
                 id, msgOut = None, None
             else:
@@ -391,7 +462,8 @@ class Connection:
                         c = self.conn.execute("""
                         insert into HISTORY (FACT, OLDMSG, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
                         select ID, MSG, ? as NEWMSG, DELETED, NSFW, ? as USER, ? as EDITDATE, ? as USER_ID 
-                        from FACTS where ID = ?""", (newResp, user, self.getCurrentDateTime(), userID, id))
+                        from FACTS where ID = ?
+                        """, (newResp, user, self.getCurrentDateTime(), userID, id))
                         self.conn.commit()
 
                         success = True
@@ -411,11 +483,11 @@ class Connection:
             
         return([success, known, matched, changed, oldResp, newResp])
 
-    def getLastFactID(self, guild):
+    def getLastFactID(self, guild, channel):
         lastID = 0
 
         try:
-            c = self.conn.execute("""select LASTFACT from GUILDSTATE where GUILD = ?""", (guild,))
+            c = self.conn.execute("""select LASTFACT from GUILDSTATE where GUILD = ? and CHANNEL = ?""", (guild, channel))
             results = c.fetchall()
             lastID = results[0][0]
         except Exception as e:
@@ -438,8 +510,8 @@ class Connection:
                 c = self.conn.execute("""
                 insert into HISTORY (FACT, OLDMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
                 select ID as FACT, MSG as OLDMSG, DELETED, NSFW, ? as USER, ? as EDITDATE, ? as USER_ID
-                from FACTS where ID =?""", (user, self.getCurrentDateTime(), userID, id))
-
+                from FACTS where ID =?
+                """, (user, self.getCurrentDateTime(), userID, id))
                 self.conn.commit()
                 
                 changed = True
@@ -462,12 +534,13 @@ class Connection:
                 undeleted = True
             else:
                 c = self.conn.execute("""update FACTS set DELETED = 0 where ID = ?""", (id,))
+                self.conn.commit()
 
                 c = self.conn.execute("""
                 insert into HISTORY (FACT, OLDMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
                 select ID, MSG, DELETED, NSFW, ? as USER, ? as EDITDATE, ? as USER_ID
-                from facts where ID =?""", (user, self.getCurrentDateTime(), userID, id))
-
+                from facts where ID =?
+                """, (user, self.getCurrentDateTime(), userID, id))
                 self.conn.commit()
                 
                 success = True
@@ -485,7 +558,8 @@ class Connection:
         try:
             c = self.conn.execute("""
             select a.FACT, b.TRIGGER, a.OLDMSG, a.NEWMSG, a.DELETED, a.NSFW, a.USER, a.EDITDATE
-            from HISTORY a, FACTS b where a.FACT = ? and a.FACT = b.ID order by ID desc""", (id,))
+            from HISTORY a, FACTS b where a.FACT = ? and a.FACT = b.ID order by a.ID desc
+            """, (id,))
             success = True
             results = c.fetchall()
         except Exception as e:
@@ -500,15 +574,13 @@ class Connection:
         success = changed = False
 
         try:
-            c = self.conn.execute("""
-            select ID from FACTS where ID = ? and NSFW = ?""", (id, nsfw))
+            c = self.conn.execute("""select ID from FACTS where ID = ? and NSFW = ?""", (id, nsfw))
             results = c.fetchall()
 
             if len(results) == 0:
                 changed = True
 
-                c = self.conn.execute("""
-                update FACTS set NSFW = ? where ID = ?""", (nsfw, id))
+                c = self.conn.execute("""update FACTS set NSFW = ? where ID = ?""", (nsfw, id))
                 self.conn.commit()
 
                 success = True

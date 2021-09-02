@@ -6,7 +6,6 @@ import parseUtil
 import wikipedia
 import random
 import inspect
-
 from discord.ext import commands
 
 class Information(commands.Cog):
@@ -29,7 +28,7 @@ class Information(commands.Cog):
                 page = wikipedia.page(searchTerm)
             except wikipedia.DisambiguationError as e:
                 choice = random.choice(e.options)
-                print(f"""{searchTerm} didn't work, trying {choice}""")
+                print(f"""wiki "{searchTerm}"" didn't work, trying {choice}""")
                 page = wikipedia.page(choice)
             except Exception as e:
                 print(inspect.stack()[0][3])
@@ -49,9 +48,12 @@ class Information(commands.Cog):
                     The pages of definitions displayed in chat are navigable only by the caller and will eventually self-destruct after 60s of inactivity.""", 
                     brief = 'Get Urban Dictionary definition')
     async def ud(self, ctx, *, searchTerm = None):
+        st = '' # Spoiler Tags
+
         if ctx.channel.nsfw == False:
-            await ctx.send("This channel is SFW. Urban dictionary... is not.")
-            return
+            #await ctx.send("This channel is SFW. Urban dictionary... is not.")
+            #return
+            st = "||"
 
         URL = """https://api.urbandictionary.com/v0/"""
         contents = []
@@ -78,10 +80,10 @@ class Information(commands.Cog):
 
         for rec in range(pages):
             contents.append({
-                "definition": f"{results[rec-1]['definition']}",
-                "word": f"{results[rec-1]['word']}",
+                "definition": f"{st}{results[rec-1]['definition']}{st}",
+                "word": f"{st}{results[rec-1]['word']}{st}",
                 "permalink": f"{results[rec-1]['permalink']}",
-                "example": f"{results[rec-1]['example']}"
+                "example": f"{st}{results[rec-1]['example']}{st}"
             })
 
         msgEmbed = discord.Embed(title = f"{contents[curPage-1]['word']}",
@@ -91,6 +93,7 @@ class Information(commands.Cog):
         msgEmbed.add_field(name = "Example",
                         value = parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['example']}"),
                         inline = False)
+        msgEmbed.set_footer(text=f"""Page {curPage} of {pages}. {'Spoiler tags for SFW channel' if st else ''}""")
         
         message = await ctx.send(embed = msgEmbed)
 
@@ -114,6 +117,7 @@ class Information(commands.Cog):
                     msgEmbed.add_field(name = "Example",
                                     value = parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['example']}"),
                                     inline = False)  
+                    msgEmbed.set_footer(text=f"""Page {curPage} of {pages}. {'Spoiler tags for SFW channel' if st else ''}""")
 
                     await message.edit(embed = msgEmbed)
                     await message.remove_reaction(reaction, user)
@@ -128,6 +132,7 @@ class Information(commands.Cog):
                     msgEmbed.add_field(name = "Example",
                                     value = parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['example']}"),
                                     inline = False)     
+                    msgEmbed.set_footer(text=f"""Page {curPage} of {pages}. {'Spoiler tags for SFW channel' if st else ''}""")
                                                     
                     await message.edit(embed = msgEmbed)
                     await message.remove_reaction(reaction, user)
