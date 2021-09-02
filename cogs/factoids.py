@@ -1,6 +1,7 @@
 import typing
 import random
 import string
+import asyncio
 
 from discord.ext import commands
 import dbFunctions
@@ -41,8 +42,8 @@ class Factoids(commands.Cog):
         user = ctx.message.author.id
 
         try:
-            if str(frequency).isnumeric() and (self.bot.owner_id == user or ctx.guild.owner_id == user):
-                self.randPerc[ctx.guild.id] = int(frequency)
+            if self.bot.owner_id == user or ctx.guild.owner_id == user:
+                self.db.updateFreq(ctx.guild.id, frequency)
                 msgOut = f"""You're the boss. Frequency for {ctx.guild.name} set to {frequency}%"""
             else:
                 msgOut = random.sample(self.noList,1)[0]
@@ -59,10 +60,10 @@ class Factoids(commands.Cog):
         msgOut = f"""Frequency for {ctx.guild.name} set to {self.db.getFreq(ctx.guild.id)}%"""
         await ctx.send(msgOut)
 
-    @commands.command(name = 'delfact',
-                    aliases = ['del','baleet','delete'],
-                    description = 'Marks a factoid as deleted, preventing its triggering in chat.',
-                    brief = 'Deletes a factoid')
+    @commands.command(name = 'delete',
+                    aliases = ['del','undel','undelete','baleet','unbaleet'],
+                    description = 'Toggles deleted flag on specified factoid or most recent triggered factoid if none specified.',
+                    brief = 'or !undelete, toggles deleted/undeleted')
     async def delfact(self, ctx, id = None):
         if not id.isnumeric() and id != None:
             await ctx.send("This is not a valid factoid ID")
@@ -70,49 +71,24 @@ class Factoids(commands.Cog):
 
         fact = self.db.factInfo(id if id != None else self.db.getLastFactID(ctx.guild.id)) if id == None or str(id).isnumeric() else []
 
+        delDesc = 'delete' if ctx.invoked_with in ['delete','del','baleet'] else 'undelete'
+        delNum = 1 if ctx.invoked_with in ['delete','del','baleet'] else 0
+
         if fact == None:
-            msgOut = f"Something went wrong deleting fact ID {fact[0]}"""
+            msgOut = f"Something went wrong trying to {delDesc} fact ID {fact[0]}"""
         elif len(fact) == 0 :
             msgOut = f"Couldn't find fact ID {fact[0]}"
         else:
-            result, deleted = self.db.delFact(fact[0], ctx.message.author.display_name, ctx.message.author.id)
+            result, changed = self.db.delFact(fact[0], ctx.message.author.display_name, ctx.message.author.id, delNum)
             if not result:
-                if deleted:
-                    msgOut = f"ID {fact[0]} already deleted."
+                if not changed:
+                    msgOut = f"ID {fact[0]} already {delDesc}d."
                 else:
-                    msgOut = f"Something went wrong deleting fact ID {fact[0]}"""
+                    msgOut = f"Something went wrong trying to {delDesc} fact ID {fact[0]}"""
             else:
-                msgOut = f"Fact with ID {fact[0]} has been marked deleted."
+                msgOut = f"Fact with ID {fact[0]} has been marked {delDesc}d."
 
         await ctx.send(msgOut)
-        
-    @commands.command(name = 'undelfact',
-                    aliases = ['undel','unbaleet','undelete'],
-                    description = 'Marks a factoid as undeleted, allowing its triggering in chat.',
-                    brief = 'Undeletes a factoid')
-    async def undelfact(self, ctx, id = None):
-        if not id.isnumeric() and id != None:
-            await ctx.send("This is not a valid factoid ID")
-            return
-
-        fact = self.db.factInfo(id if id != None else self.db.getLastFactID(ctx.guild.id)) if id == None or str(id).isnumeric() else []
-
-        if fact == None:
-            msgOut = f"Something went wrong undeleting fact ID {fact[0]}"""
-        elif len(fact) == 0 :
-            msgOut = f"Couldn't find fact ID {fact[0]}"
-        else:
-            result, undeleted = self.db.undelFact(fact[0], ctx.message.author.display_name, ctx.message.author.id)
-            if not result:
-                if undeleted:
-                    msgOut = f"ID {fact[0]} was not deleted."
-                else:
-                    msgOut = f"Something went wrong undeleting fact ID {fact[0]}"""
-            else:
-                msgOut = f"Fact with ID {fact[0]} has been marked undeleted."
-
-        await ctx.send(msgOut)
-
     @commands.command(name = 'wtf', 
                     aliases = ['what', 'wth'], 
                     description = 'Retrieves info on specified factoid or last factoid if no id provided.', 
@@ -125,16 +101,7 @@ class Factoids(commands.Cog):
         elif len(fact) == 0:
             msgOut = """¯\_(ツ)_/¯"""
         else: 
-            msgOut = f"""
-    ID: {str(fact[0])}
-    Trigger: {fact[1] if fact[1] != None else "*None*"}
-    Response: {fact[2]}
-    NSFW: {str(fact[3]==1)}
-    Deleted: {str(fact[4]==1)}
-    Creator: {fact[5]}
-    Created: {fact[6]}
-    Times Triggered: {fact[7]}
-    Last Triggered: {fact[8]}
+            msgOut = f"""ID: {str(fact[0])}\nTrigger: {fact[1] if fact[1] != None else "*None*"}\nResponse: {fact[2]}\nNSFW: {str(fact[3]==1)}\nDeleted: {str(fact[4]==1)}\nCreator: {fact[5]}\nCreated: {fact[6]}\nTimes Triggered: {fact[7]}\nLast Triggered: {fact[8]}
             """
         await ctx.send(msgOut)
 
@@ -151,10 +118,10 @@ class Factoids(commands.Cog):
         else:
             nsfw = 1 if ctx.invoked_with == 'onnsfwrand' else 0
 
-            success, known = self.db.addRandFact(args, nsfw, ctx.message.author.display_name, ctx.message.author.id)
+            success, known, id = self.db.addRandFact(args, nsfw, ctx.message.author.display_name, ctx.message.author.id)
 
             if success:
-                msgOut = f"""Ok. I'll randomly say "{args}\""""
+                msgOut = f"""Ok. I'll randomly say "{args}\"\n(ID: {id})"""
             else:
                 if known:
                     msgOut = 'Oh, I already know that.'
@@ -199,47 +166,127 @@ class Factoids(commands.Cog):
 to
 {results[5]}"""
 
+        await ctx.send(msgOut)                
+
+    @commands.command(name='nsfw',
+                    aliases = ['sfw'],
+                    description = 'Toggles NSFW flag on factoid record.',
+                    brief = 'or !sfw, mark factoid NSFW/SFW')
+    async def nsfw(self, ctx, id: typing.Optional[int] = 0):        
+        
+        lastID = self.db.getLastFactID(ctx.guild.id) if id == 0 else id
+        valueNSFW = 1 if ctx.invoked_with == 'nsfw' else 0
+
+        success, changed = self.db.toggleNSFW(lastID, valueNSFW)
+
+        descNSFW = 'NSFW' if ctx.invoked_with == 'nsfw' else 'sfw'
+
+        if not success:
+            msgOut = f"""Something went wrong marking {lastID} as {descNSFW}."""
+        elif not changed:
+            msgOut = f"""ID {lastID} already marked {descNSFW}."""
+        else:
+            msgOut = f"""Successfully set ID {lastID} as {descNSFW}."""
+            
         await ctx.send(msgOut)
 
     @commands.command(name = 'on', 
-                aliases = ['onnsfw'], 
-                description = f"""Assign a response to triggering phrase. !on<nsfw> {{trigger}} -say {{response}}. 
-                Using !onnsfw marks the response as NSFW and will not be triggered in SFW channels.
-                Use $self to refer to the bot in the trigger. i.e. !on "Hi $self" -say Hello. 
-                Use $rand, $nick, and $item in response to sub in a random user, the triggering user, and an inventory item, respectively.
-                $item consumes the inventory item.""", 
-                brief = 'Teach me to respond to something')
+                    aliases = ['onnsfw'], 
+                    description = f"""Assign a response to triggering phrase. !on<nsfw> {{trigger}} -say {{response}}. 
+                    Using !onnsfw marks the response as NSFW and will not be triggered in SFW channels.
+                    Use $self to refer to the bot in the trigger. i.e. !on "Hi $self" -say Hello. 
+                    Use $rand, $nick, and $item in response to sub in a random user, the triggering user, and an inventory item, respectively.
+                    $item consumes the inventory item.""", 
+                    brief = 'Teach me to respond to something')
     async def on(self, ctx, *, args):
         parts = args.split('-say')
         if len(parts) <= 1:
             msgOut = 'Usage is !on<nsfw> trigger -say response'
+        else:
+            trigger = parseUtil.convertEmote(parts[0]).strip()
+            response = ''.join(parts[1:]).strip()
+            botCommand = True if trigger.startswith('!') or response.startswith('!') else False
+            
+            cleanTrigger = parseUtil.mentionToSelfVar(trigger, self.db.getBotRole(ctx.guild.id), self.bot.user.id)
+            triggerParts = cleanTrigger.split('$self')
+            cleanTrigger = '$self'.join(e.strip(string.punctuation).lower() for e in triggerParts).strip()
 
-        trigger = parseUtil.convertEmote(parts[0]).strip()
-        response = ''.join(parts[1:]).strip()
-        botCommand = True if trigger.startswith('!') or response.startswith('!') else False
-        
-        cleanTrigger = parseUtil.mentionToSelfVar(trigger, self.db.getBotRole(ctx.guild.id), self.bot.user.id)
-        triggerParts = cleanTrigger.split('$self')
-        cleanTrigger = '$self'.join(e.strip(string.punctuation).lower() for e in triggerParts).strip()
+            if botCommand:
+                msgOut = "I'm not remembering bot commands."
+            elif len(cleanTrigger) < 4:
+                msgOut = 'Trigger must be >= 4 alphanumeric characters'
+            else:    
+                if trigger.startswith('_') and trigger.endswith('_'):
+                    cleanTrigger = '_' + trigger + '_'
 
-        if botCommand:
-            msgOut = "I'm not remembering bot commands."
-        elif len(cleanTrigger) < 4:
-            msgOut = 'Trigger must be >= 4 alphanumeric characters'
-        else:    
-            if trigger.startswith('_') and trigger.endswith('_'):
-                cleanTrigger = '_' + trigger + '_'
+                print(ctx.invoked_with)
 
-            nsfw = 1 if ctx.invoked_with == 'onnsfw' else 0
+                nsfw = 1 if ctx.invoked_with == 'onnsfw' else 0
 
-            success, known = self.db.addFact(cleanTrigger, response, nsfw, ctx.message.author.display_name, ctx.message.author.id)
+                success, known, id = self.db.addFact(cleanTrigger, response, nsfw, ctx.message.author.display_name, ctx.message.author.id)
 
-            if success:
-                msgOut = f"""Ok. When I see "{trigger}" I'll say "{response}\""""
-            else:
-                if known:
-                    msgOut = 'Oh, I already know that.'
+                if success:
+                    msgOut = f"""Ok. When I see "{trigger}" I'll say "{response}\"\n(ID: {id})"""
                 else:
-                    msgOut = 'Something went wrong adding this factoid.'
+                    if known:
+                        msgOut = 'Oh, I already know that.'
+                    else:
+                        msgOut = 'Something went wrong adding this factoid.'
 
         await ctx.send(msgOut)
+
+    @commands.command(name = 'hist',
+                    aliases = ['gethist'],
+                    description = """Returns change log for factoid provided or last triggered factoid if none provided.
+                    The change log pages displayed in chat are navigable only by the caller and will eventually self-destruct after 60s of inactivity.""",
+                    brief = 'Get factoid change log')
+    async def hist(self, ctx, id: typing.Optional[int] = 0):
+        #return # disabling for now
+        searchID = self.db.getLastFactID(ctx.guild.id) if id == 0 else id
+        contents = []
+        
+        success, history = self.db.getFactHist(searchID)
+
+        if not success:
+            await ctx.send(f"Something went wrong getting history for ID {searchID}.")
+            return
+        elif len(history) == 0:
+            await ctx.send(f"History for ID {searchID} not found.")
+            return
+            
+        pages = len(history)
+        curPage = 1
+
+        for rec in range(pages):
+            contents.append(f"""**{len(pages)} Pages**\n\nID: {history[rec-1][0]}\nTrigger: {history[rec-1][1]}\nOldMsg: {history[rec-1][2]}\nNewMsg: {history[rec-1][3]}\nDeleted: {history[rec-1][4]==1}\nNSFW: {history[rec-1][5]==1}\nUser: {history[rec-1][6]}\nDate: {history[rec-1][7]}
+            """)
+
+        message = await ctx.send(contents[curPage-1])
+
+        await message.add_reaction("◀️")
+        await message.add_reaction("▶️")
+
+        def check(reaction,user):
+            return user == ctx.author and str(reaction.emoji) in ["◀️", "▶️"]
+        
+        while True:
+            try:
+                reaction, user = await self.bot.wait_for("reaction_add", timeout=60, check=check)
+
+                if str(reaction.emoji) == "▶️" and curPage != pages:
+                    curPage += 1
+                    await message.edit(content=f"Page {curPage}/{pages}:\n{contents[curPage-1]}")
+                    await message.remove_reaction(reaction, user)
+
+                elif str(reaction.emoji) == "◀️" and curPage > 1:
+                    curPage -= 1
+                    await message.edit(content=f"Page {curPage}/{pages}:\n{contents[curPage-1]}")
+                    await message.remove_reaction(reaction, user)
+
+                else:
+                    await message.remove_reaction(reaction, user)
+                    # removes reactions if the user tries to go forward on the last page or
+                    # backwards on the first page
+            except asyncio.TimeoutError:
+                await message.delete()
+                break

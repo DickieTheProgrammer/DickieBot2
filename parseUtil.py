@@ -33,3 +33,16 @@ def mentionToSelfVar(msgIn,botRole, botID):
     msgOut = msgOut.replace(role,'$self') 
 
     return(msgOut)
+
+def convertLinkMarkdown(msgIn):
+    searchResults = re.findall(r'\[.+?\]',msgIn)
+    links = []
+    msgOut = msgIn
+
+    if len(searchResults) > 0:
+        links = (list(set(searchResults)))
+        for i in links:
+            msgOut = msgOut.replace(i, i + f"""(https://www.urbandictionary.com/define.php?term={i.strip('[').strip(']').replace(' ','%20')})""" )
+
+    return(msgOut)
+    

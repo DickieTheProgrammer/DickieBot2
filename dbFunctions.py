@@ -81,6 +81,7 @@ class Connection:
             insert into GUILDSTATE (GUILD, BOTROLE) 
             select ?, ? where not exists (select GUILD from GUILDSTATE where GUILD = ?)""", (guild, roleID, guild))
             self.conn.commit()
+            
             success = True
         except Exception as e:
             print(inspect.stack()[0][3])
@@ -162,9 +163,9 @@ class Connection:
         
         try:
             c = self.conn.execute("""
-                INSERT INTO INVENTORY (GUILD,ITEM,USER,DATEADDED,USER_ID)
-                values(?,?,?,?,?)
-                """, (guild, item, user, self.getCurrentDateTime(), userID))
+            INSERT INTO INVENTORY (GUILD,ITEM,USER,DATEADDED,USER_ID)
+            values(?,?,?,?,?)
+            """, (guild, item, user, self.getCurrentDateTime(), userID))
                 
             self.conn.commit()
 
@@ -182,8 +183,8 @@ class Connection:
         
         try:
             c = self.conn.execute("""
-                select ITEM from INVENTORY where GUILD = ?
-                """, (guild,))
+            select ITEM from INVENTORY where GUILD = ?
+            """, (guild,))
             
             itemList = c.fetchall()
         except Exception as e:
@@ -199,9 +200,9 @@ class Connection:
 
         try:
             c = self.conn.execute("""
-                select ITEM, ID from INVENTORY where GUILD = ?
-                order by RANDOM() limit 1
-                """, (guild,))
+            select ITEM, ID from INVENTORY where GUILD = ?
+            order by RANDOM() limit 1
+            """, (guild,))
             
             itemList = c.fetchall()
 
@@ -211,7 +212,7 @@ class Connection:
                 id = itemList[0][1]
 
                 c = self.conn.execute("""
-                    delete from INVENTORY where ID = ?
+                delete from INVENTORY where ID = ?
                 """,(id,))
 
                 self.conn.commit()
@@ -245,16 +246,24 @@ class Connection:
     def addRandFact(self, response, nsfw, creator, creatorID):
         success = False
         known = False
+        maxID = None
 
         try:
             c = self.conn.execute("""
-                insert into FACTS (MSG, NSFW, CREATOR, CREATED, CREATOR_ID)
-                values (?,?,?,?,?)    
+            insert into FACTS (MSG, NSFW, CREATOR, CREATED, CREATOR_ID)
+            values (?,?,?,?,?)    
             """, (response, nsfw, creator, self.getCurrentDateTime(), creatorID))
 
+            c = self.conn.execute("""select max(ID) from FACTS where MSG = ?""", (response,))
+            results = c.fetchall
+            maxID = results[0][0]
+
+            c = self.conn.execute("""
+            insert into HISTORY (FACT, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
+            (select ID, MSG, DELETED, NSFW, USER, CREATED, USER_ID from FACTS where ID = ?)""", (maxID))
             self.conn.commit()
 
-            print('Remembering [' + response + ']')
+            print(f'Remembering {maxID}:[{response}]')
             success = True
         except sql.IntegrityError:
             success = False
@@ -264,20 +273,29 @@ class Connection:
             print(inspect.stack()[1][3])
             print(e)
 
-        return(success, known)
+        return(success, known, maxID)
 
     def addFact(self, trigger, response, nsfw, creator, creatorID):
         success = False
         known = False
+        maxID = None
 
         try:
             c = self.conn.execute("""
-                insert into FACTS (MSG, TRIGGER, NSFW, CREATOR, CREATED, CREATOR_ID)
-                values (?,?,?,?,?,?)
+            insert into FACTS (MSG, TRIGGER, NSFW, CREATOR, CREATED, CREATOR_ID)
+            values (?,?,?,?,?,?)
             """, (response, trigger, nsfw, creator, self.getCurrentDateTime(), creatorID))
+
+            c = self.conn.execute("""select max(ID) from FACTS where MSG = ?""", (response,))
+            results = c.fetchall
+            maxID = results[0][0]
+
+            c = self.conn.execute("""
+            insert into HISTORY (FACT, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
+            (select ID, MSG, DELETED, NSFW, USER, CREATED, USER_ID from FACTS where ID = ?)""", (maxID))
             self.conn.commit()
 
-            print('Remembering [' + trigger + '] is [' + response + ']')
+            print(f'Remembering {maxID}: [{trigger}] is [{response}]')
             success = True
         except sql.IntegrityError:
             success = False
@@ -287,7 +305,7 @@ class Connection:
             print(inspect.stack()[1][3])
             print(e)
 
-        return(success, known)
+        return(success, known, maxID)
 
     def getFact(self, trigger, nsfw):
         success = False
@@ -407,33 +425,31 @@ class Connection:
 
         return(lastID)
         
-    def delFact(self, id, user, userID):
-        deleted = success = False
+    def delFact(self, id, user, userID, deleted):
+        changed = success = False
 
         try:
-            print(0)
-            c = self.conn.execute("""select ID from FACTS where DELETED = 1 and ID = ?""", (id,))
+            c = self.conn.execute("""select ID from FACTS where DELETED = ? and ID = ?""", (deleted, id))
             results = c.fetchall()
 
-            if results != None and len(results) == 1:
-                deleted = True
-            else:
-                c = self.conn.execute("""update FACTS set DELETED = 1 where ID = ?""", (id,))
+            if results == None or len(results) == 0:
+                c = self.conn.execute("""update FACTS set DELETED = ? where ID = ?""", (deleted, id))
 
                 c = self.conn.execute("""
                 insert into HISTORY (FACT, OLDMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
                 select ID as FACT, MSG as OLDMSG, DELETED, NSFW, ? as USER, ? as EDITDATE, ? as USER_ID
                 from FACTS where ID =?""", (user, self.getCurrentDateTime(), userID, id))
-                
+
                 self.conn.commit()
                 
+                changed = True
                 success = True
         except Exception as e:
             print(inspect.stack()[0][3])
             print(inspect.stack()[1][3])
             print(e)
         
-        return(success, deleted)
+        return(success, changed)
 
     def undelFact(self, id, user, userID):
         undeleted = success = False
@@ -461,3 +477,45 @@ class Connection:
             print(e)
         
         return(success, undeleted)
+
+    def getFactHist(self, id):
+        results = []
+        success = False
+
+        try:
+            c = self.conn.execute("""
+            select a.FACT, b.TRIGGER, a.OLDMSG, a.NEWMSG, a.DELETED, a.NSFW, a.USER, a.EDITDATE
+            from HISTORY a, FACTS b where a.FACT = ? and a.FACT = b.ID order by ID desc""", (id,))
+            success = True
+            results = c.fetchall()
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+        
+        return(success,results)
+
+    def toggleNSFW(self, id, nsfw):
+        results = []
+        success = changed = False
+
+        try:
+            c = self.conn.execute("""
+            select ID from FACTS where ID = ? and NSFW = ?""", (id, nsfw))
+            results = c.fetchall()
+
+            if len(results) == 0:
+                changed = True
+
+                c = self.conn.execute("""
+                update FACTS set NSFW = ? where ID = ?""", (nsfw, id))
+                self.conn.commit()
+
+                success = True
+
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+
+        return(success,changed)
