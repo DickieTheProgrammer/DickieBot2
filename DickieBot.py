@@ -70,6 +70,7 @@ async def on_member_update(before, after):
 async def on_message(message):
     msgOut = None
     botCommand = True if message.content.startswith('!') else False
+    id = None
 
     if message.author == bot.user: return
 
