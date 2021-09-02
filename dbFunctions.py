@@ -145,6 +145,7 @@ class Connection:
             select ?, ?, ? where not exists (select GUILD from GUILDSTATE where GUILD = ? and CHANNEL = ?)
             """, (guild, roleID, channel, guild, channel))
             self.conn.commit()
+            
             success = True
         except Exception as e:
             print(inspect.stack()[0][3])
@@ -345,6 +346,14 @@ class Connection:
             insert into FACTS (MSG, TRIGGER, NSFW, CREATOR, CREATED, CREATOR_ID)
             values (?,?,?,?,?,?)
             """, (response, trigger, nsfw, creator, self.getCurrentDateTime(), creatorID))
+
+            c = self.conn.execute("""select max(ID) from FACTS where MSG = ?""", (response,))
+            results = c.fetchall
+            maxID = results[0][0]
+
+            c = self.conn.execute("""
+            insert into HISTORY (FACT, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
+            (select ID, MSG, DELETED, NSFW, USER, CREATED, USER_ID from FACTS where ID = ?)""", (maxID))
             self.conn.commit()
 
             c = self.conn.execute("""select max(ID) from FACTS where MSG = ?""", (response,))
@@ -356,7 +365,6 @@ class Connection:
             select ID, MSG, DELETED, NSFW, CREATOR, CREATED, CREATOR_ID from FACTS where ID = ?
             """, (maxID,))
             self.conn.commit()
-
             print(f'Remembering {maxID}: [{trigger}] is [{response}]')
             success = True
         except sql.IntegrityError:
