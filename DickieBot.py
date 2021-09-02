@@ -38,7 +38,7 @@ async def on_ready():
         # If this happens, capture it and save the bot role
         role = utils.get(gld.roles,name=botName)
         roleID = 0 if role == None else role.id
-        db.initGuild(gld.id, roleID)
+        for i in gld.text_channels: db.initGuild(gld.id, roleID, i.id)
 
     print(f'{bot.user.name} has connected to Discord!')
     print(f'{bot.user} is user')
@@ -50,7 +50,9 @@ async def on_guild_join(guild):
     # If this happens, capture it and save the bot role
     role = utils.get(guild.roles,name=botName)
     roleID = 0 if role == None else role.id
-    db.initGuild(guild.id, roleID)
+    for i in guild.text_channels: 
+        print(f"""{i.name} in {guild.name} initialized.""")
+        db.initGuild(guild.id, roleID, i.id)
 
 @bot.event
 async def on_member_update(before, after):
@@ -60,7 +62,9 @@ async def on_member_update(before, after):
         newRole = next(role for role in after.roles if role not in before.roles)
 
         if newRole.name == botName:
-            db.setBotRole(after.guild.id, newRole.id)
+            for i in after.guild.text_channels: 
+                print(f"""{i.name} in {after.guild.name} initialized.""")
+                db.setBotRole(after.guild.id, newRole.id, i.id)
 
 @bot.event
 async def on_message(message):
@@ -79,13 +83,12 @@ async def on_message(message):
 
     # Standardize emotes to _<words>_
     msgIn = parseUtil.convertEmote(message.content) 
-    print(msgIn)
 
     # Collapse message to one line
     msgIn = re.sub(r'\n',' ',msgIn) 
 
     # Convert notification reference to "$self" variable
-    msgIn = parseUtil.mentionToSelfVar(msgIn, db.getBotRole(message.guild.id), botID)
+    msgIn = parseUtil.mentionToSelfVar(msgIn, db.getBotRole(message.guild.id, message.channel.id), botID)
 
     if msgIn.startswith('_gives $self') and msgIn.endswith('_'):
         # Given Inventory item
@@ -107,16 +110,16 @@ async def on_message(message):
         msgIn = '$self'.join(e.strip(string.punctuation).lower() for e in msgInParts).strip()
 
         id, msgOut = db.getFact(msgIn,nsfwTag)
-        ###if id != None: db.updateLastFact(message.guild.id, id)
 
         # If factoid not triggered by incoming message, check for random
         randomNum = random.randint(1,100)
-        print(f"Random number {randomNum} <= {db.getFreq(message.guild.id)} ({message.guild.name})?")
-        if id == None and randomNum <= db.getFreq(message.guild.id): id, msgOut = db.getFact(None,nsfwTag)
+        print(f"Random number {randomNum} <= {db.getFreq(message.guild.id, message.channel.id)} ({message.guild.name}|{message.channel.name})?")
+        if id == None and randomNum <= db.getFreq(message.guild.id, message.channel.id): 
+            id, msgOut = db.getFact(None,nsfwTag)
 
         # Update called metrics for factoid if called
         if id != None:
-            db.updateLastFact(message.guild.id, id)
+            db.updateLastFact(message.guild.id, id, message.channel.id)
             db.updateLastCalled(id)
 
         # Replace $nick variables with message author
@@ -125,18 +128,19 @@ async def on_message(message):
         except:
             pass
 
-        # Replace $rand variables each with random guild member
-        guildMembers = message.guild.members
-        for m in guildMembers: 
-            if m.status != 'online' and m.status != 'idle': guildMembers.remove(m)
-
         # Replace $rand variables each with random guild member or "nobody" if $rands outnumber guild members
         randCount = msgOut.count('$rand') if msgOut != None else 0
-        randList = random.sample(guildMembers,randCount)
-        for i in range(randCount):
-            if i >= len(randList): randList.append('nobody')
-            randUser = '<@!' + str(randList[i-1].id) + '>'
-            msgOut = msgOut.replace('$rand', randUser, 1)
+
+        if randCount:
+            guildMembers = message.guild.members
+            for m in guildMembers: 
+                if m.status != 'online' and m.status != 'idle': guildMembers.remove(m)
+
+            randList = random.sample(guildMembers,randCount)
+            for i in range(randCount):
+                if i >= len(randList): randList.append('nobody')
+                randUser = '<@!' + str(randList[i-1].id) + '>'
+                msgOut = msgOut.replace('$rand', randUser, 1)
 
         # Replace $item variables each with random inventory item
         itemCount = msgOut.count('$item') if msgOut != None else 0
@@ -146,10 +150,6 @@ async def on_message(message):
                 
     if msgOut != None:
         await message.channel.send(msgOut)
-        
-    #embed = discord.Embed()
-    #embed.description = "This is a hyperlink test. Check out [Google.com](http://www.google.com)"
-    #await message.channel.send(embed = embed)
 
     await bot.process_commands(message)
 
@@ -157,4 +157,8 @@ bot.add_cog(general.General(bot))
 bot.add_cog(info.Information(bot))
 bot.add_cog(inventory.Inventory(bot, db))
 bot.add_cog(factoids.Factoids(bot, db))
-bot.run(TOKEN)
+try:
+    bot.run(TOKEN)
+except:
+    db.close()
+    print("Disconnecting")

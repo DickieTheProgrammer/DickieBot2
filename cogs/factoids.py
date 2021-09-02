@@ -44,8 +44,8 @@ class Factoids(commands.Cog):
 
         try:
             if self.bot.owner_id == user or ctx.guild.owner_id == user:
-                self.db.updateFreq(ctx.guild.id, frequency)
-                msgOut = f"""You're the boss. Frequency for {ctx.guild.name} set to {frequency}%"""
+                self.db.updateFreq(ctx.guild.id, frequency, ctx.channel.id)
+                msgOut = f"""You're the boss. Frequency for {ctx.channel.name} set to {frequency}%"""
             else:
                 msgOut = random.sample(self.noList,1)[0]
         except Exception as e:
@@ -58,7 +58,7 @@ class Factoids(commands.Cog):
                 description = """Returns the frequency with which I will respond to non-command messages with random factoids. Number is out of 100.""",
                 brief = "Get random frequency of server")
     async def freq(self, ctx):
-        msgOut = f"""Random frequency for {ctx.guild.name} set to {self.db.getFreq(ctx.guild.id)}%"""
+        msgOut = f"""Random frequency for {ctx.channel.name} set to {self.db.getFreq(ctx.guild.id, ctx.channel.id)}%"""
         await ctx.send(msgOut)
 
     @commands.command(name = 'delete',
@@ -90,20 +90,21 @@ class Factoids(commands.Cog):
                 msgOut = f"Fact with ID {fact[0]} has been marked {delDesc}d."
 
         await ctx.send(msgOut)
-        
+
     @commands.command(name = 'wtf', 
                     aliases = ['what', 'wth'], 
                     description = 'Retrieves info on specified factoid or last factoid if no id provided.', 
                     brief = 'Retrieve factoid info')
     async def wtf(self, ctx, id: typing.Optional[int] = None):
-        fact = self.db.factInfo(id if id != None else self.db.getLastFactID(ctx.guild.id)) if id == None or str(id).isnumeric() else []
+        fact = self.db.factInfo(id if id != None else self.db.getLastFactID(ctx.guild.id, ctx.channel.id)) if id == None or str(id).isnumeric() else []
 
         if fact == None:
             msgOut = f'Something went wrong retrieving fact info for ID {id}'
         elif len(fact) == 0:
             msgOut = """¯\_(ツ)_/¯"""
         else: 
-            msgOut = f"""ID: {str(fact[0])}\nTrigger: {fact[1] if fact[1] != None else "*None*"}\nResponse: {fact[2]}\nNSFW: {str(fact[3]==1)}\nDeleted: {str(fact[4]==1)}\nCreator: {fact[5]}\nCreated: {fact[6]}\nTimes Triggered: {fact[7]}\nLast Triggered: {fact[8]}
+            st = '||' if fact[3]==1 and not ctx.channel.is_nsfw else ''
+            msgOut = f"""ID: {str(fact[0])}\nTrigger: {st}{fact[1] if fact[1] != None else "*None*"}{st}\nResponse: {st}{fact[2]}{st}\nNSFW: {str(fact[3]==1)}\nDeleted: {str(fact[4]==1)}\nCreator: {fact[5]}\nCreated: {fact[6]}\nTimes Triggered: {fact[7]}\nLast Triggered: {fact[8]}
             """
         await ctx.send(msgOut)
 
@@ -209,7 +210,7 @@ to
             response = ''.join(parts[1:]).strip()
             botCommand = True if trigger.startswith('!') or response.startswith('!') else False
             
-            cleanTrigger = parseUtil.mentionToSelfVar(trigger, self.db.getBotRole(ctx.guild.id), self.bot.user.id)
+            cleanTrigger = parseUtil.mentionToSelfVar(trigger, self.db.getBotRole(ctx.guild.id, ctx.channel.id), self.bot.user.id)
             triggerParts = cleanTrigger.split('$self')
             cleanTrigger = '$self'.join(e.strip(string.punctuation).lower() for e in triggerParts).strip()
 
@@ -219,7 +220,7 @@ to
                 msgOut = 'Trigger must be >= 4 alphanumeric characters'
             else:    
                 if trigger.startswith('_') and trigger.endswith('_'):
-                    cleanTrigger = '_' + trigger + '_'
+                    cleanTrigger = '_' + cleanTrigger + '_'
 
                 nsfw = 1 if ctx.invoked_with == 'onnsfw' else 0
 
@@ -256,8 +257,9 @@ to
         pages = len(history)
         curPage = 1
 
+        st = '||' if history[0][4]==1 and not ctx.channel.is_nsfw else ''
         for rec in range(pages):
-            contents.append(f"""**{len(pages)} Pages**\n\nID: {history[rec-1][0]}\nTrigger: {history[rec-1][1]}\nOldMsg: {history[rec-1][2]}\nNewMsg: {history[rec-1][3]}\nDeleted: {history[rec-1][4]==1}\nNSFW: {history[rec-1][5]==1}\nUser: {history[rec-1][6]}\nDate: {history[rec-1][7]}
+            contents.append(f"""Page {curPage}/{pages}:\nID: {history[rec-1][0]}\nTrigger: {st}{history[rec-1][1]}{st}\nOldMsg: {st}{history[rec-1][2]}{st}\nNewMsg: {st}{history[rec-1][3]}{st}\nDeleted: {history[rec-1][4]==1}\nNSFW: {history[rec-1][5]==1}\nUser: {history[rec-1][6]}\nDate: {history[rec-1][7]}
             """)
 
         message = await ctx.send(contents[curPage-1])
