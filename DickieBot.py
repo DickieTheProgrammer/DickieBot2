@@ -7,9 +7,7 @@ import re
 import random
 import string
 import parseUtil
-
 from cogs import general, factoids, inventory, info
-
 from discord import member, utils
 from dbFunctions import Connection
 from dotenv import load_dotenv
@@ -59,7 +57,7 @@ async def on_member_update(before, after):
     # Sometimes the bot joins a server and automatically gets a role with the same name as him
     # If that role is created and assigned AFTER joining at some later time, capture it and save the bot role
     if after.id == botID and len(before.roles) < len(after.roles):
-        newRole = next(role for role in after.roels if role not in before.roles)
+        newRole = next(role for role in after.roles if role not in before.roles)
 
         if newRole.name == botName:
             db.setBotRole(after.guild.id, newRole.id)
@@ -81,6 +79,7 @@ async def on_message(message):
 
     # Standardize emotes to _<words>_
     msgIn = parseUtil.convertEmote(message.content) 
+    print(msgIn)
 
     # Collapse message to one line
     msgIn = re.sub(r'\n',' ',msgIn) 
@@ -98,6 +97,9 @@ async def on_message(message):
         else:
             msgOut = '_added %s to his inventory_' % item
     elif not botCommand:
+        found, duration, started = db.getShutUpDuration(message.guild.id, message.channel.id)
+        if found: return
+
         nsfwTag = 1 if message.channel.is_nsfw() else 0
 
         # Check to see if factoid triggered

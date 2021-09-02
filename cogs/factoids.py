@@ -2,10 +2,11 @@ import typing
 import random
 import string
 import asyncio
-
-from discord.ext import commands
+import math
+import time
 import dbFunctions
 import parseUtil
+from discord.ext import commands
 
 DEFAULTPERC = 5
 
@@ -57,7 +58,7 @@ class Factoids(commands.Cog):
                 description = """Returns the frequency with which I will respond to non-command messages with random factoids. Number is out of 100.""",
                 brief = "Get random frequency of server")
     async def freq(self, ctx):
-        msgOut = f"""Frequency for {ctx.guild.name} set to {self.db.getFreq(ctx.guild.id)}%"""
+        msgOut = f"""Random frequency for {ctx.guild.name} set to {self.db.getFreq(ctx.guild.id)}%"""
         await ctx.send(msgOut)
 
     @commands.command(name = 'delete',
@@ -89,6 +90,7 @@ class Factoids(commands.Cog):
                 msgOut = f"Fact with ID {fact[0]} has been marked {delDesc}d."
 
         await ctx.send(msgOut)
+        
     @commands.command(name = 'wtf', 
                     aliases = ['what', 'wth'], 
                     description = 'Retrieves info on specified factoid or last factoid if no id provided.', 
@@ -219,8 +221,6 @@ to
                 if trigger.startswith('_') and trigger.endswith('_'):
                     cleanTrigger = '_' + trigger + '_'
 
-                print(ctx.invoked_with)
-
                 nsfw = 1 if ctx.invoked_with == 'onnsfw' else 0
 
                 success, known, id = self.db.addFact(cleanTrigger, response, nsfw, ctx.message.author.display_name, ctx.message.author.id)
@@ -241,7 +241,6 @@ to
                     The change log pages displayed in chat are navigable only by the caller and will eventually self-destruct after 60s of inactivity.""",
                     brief = 'Get factoid change log')
     async def hist(self, ctx, id: typing.Optional[int] = 0):
-        #return # disabling for now
         searchID = self.db.getLastFactID(ctx.guild.id) if id == 0 else id
         contents = []
         
@@ -290,3 +289,40 @@ to
             except asyncio.TimeoutError:
                 await message.delete()
                 break
+
+    @commands.command(name='shutup',
+                    aliases=['shaddup', 'stfu'],
+                    description = """Silences triggering of factoids for the duration provided, or 5 minutes if no duration provided. Max duration 30 min.""",
+                    brief = """Prevents triggering of factoids""")
+    async def shutup(self, ctx, shutUpDuration: typing.Optional[int]  = 5):
+        found, duration, started = self.db.getShutUpDuration(ctx.guild.id, ctx.channel.id)
+
+        if found:
+            timeLeft = (duration*60) - (time.time() - started)
+
+            if timeLeft < 0:
+                msgOut = """Strange. I should be done with"""
+            elif timeLeft < 10:
+                msgOut =f"""Almost done with"""
+            elif timeLeft < 30:
+                msgOut = """I've got less than 30 seconds of"""
+            elif timeLeft < 60:
+                msgOut = """I've got less than a minute left of"""
+            elif timeLeft < 120:
+                msgOut = """I've got over a minute left of"""
+            else:
+                msgOut = f"""I've got over {math.floor(timeLeft/60)} minutes left of"""
+
+            msgOut = msgOut + f" my current {duration} minute cooldown."
+        else:
+            if shutUpDuration > 30 or shutUpDuration < 1:
+                msgOut = "I'm just gonna be quiet for 5 minutes."
+            else:
+                msgOut = f"""Okay, I'll shut up for {shutUpDuration} {'minutes' if shutUpDuration != 1 else 'minute'}."""
+
+            success = self.db.addShutUpRecord(ctx.guild.id, ctx.channel.id, shutUpDuration)
+
+            if not success:
+                msgOut = f"""Something went wrong shutting up for {shutUpDuration} {'minutes' if shutUpDuration != 1 else 'minute'}."""
+
+        await ctx.send(msgOut)

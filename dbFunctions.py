@@ -3,6 +3,7 @@
 
 import re
 import inspect
+import time
 import sqlite3 as sql
 from datetime import datetime
 from dateutil import tz
@@ -71,8 +72,77 @@ class Connection:
             )
         """)
 
+        try:
+            c = self.conn.execute("""drop table SILENCED""")
+        except:
+            pass
+
+        c = self.conn.execute("""
+            CREATE TABLE IF NOT EXISTS SILENCED(
+                GUILD       INTEGER,
+                CHANNEL     INTEGER,
+                DURATION    INTEGER,
+                STARTED     REAL,
+                PRIMARY KEY (GUILD, CHANNEL)
+            )
+        """)        
+
     def getCurrentDateTime(self):
         return(datetime.now(tz.gettz('America/Chicago')).strftime('%Y-%m-%d %H:%M:%S %Z'))
+
+    def getShutUpDuration(self, guild, channel):
+        found = False
+        duration = started = None
+
+        try:
+            c = self.conn.execute("""
+            select DURATION, STARTED from SILENCED where GUILD = ? and CHANNEL = ?
+            """, (guild, channel))
+
+            results = c.fetchall()
+
+            if len(results) > 0:
+                duration = results[0][0]
+                started = results[0][1]
+                if time.time() - started < (duration*60):
+                    found = True
+                else:
+                    self.delShutUpRecord(guild, channel)
+
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+
+        return found, duration, started
+
+    def delShutUpRecord(self, guild, channel):
+        try:
+            c = self.conn.execute("""
+            delete from SILENCED where GUILD = ? and CHANNEL = ?
+            """, (guild, channel))
+            self.conn.commit()
+            success=True
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+
+    def addShutUpRecord(self, guild, channel, duration):
+        success = False
+
+        try:
+            c = self.conn.execute("""
+            insert into SILENCED (GUILD, CHANNEL, DURATION, STARTED)
+            values (?, ?, ?, ?)""", (guild, channel, duration, time.time()))
+            self.conn.commit()
+            success=True
+        except Exception as e:
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+        
+        return(success)
 
     def initGuild(self, guild, roleID):
         success = False
@@ -255,12 +325,13 @@ class Connection:
             """, (response, nsfw, creator, self.getCurrentDateTime(), creatorID))
 
             c = self.conn.execute("""select max(ID) from FACTS where MSG = ?""", (response,))
-            results = c.fetchall
+            results = c.fetchall()
             maxID = results[0][0]
 
             c = self.conn.execute("""
             insert into HISTORY (FACT, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
-            (select ID, MSG, DELETED, NSFW, USER, CREATED, USER_ID from FACTS where ID = ?)""", (maxID))
+            select ID, MSG, DELETED, NSFW, CREATOR, CREATED, CREATOR_ID from FACTS where ID = ?
+            """, (maxID,))
             self.conn.commit()
 
             print(f'Remembering {maxID}:[{response}]')
@@ -287,12 +358,13 @@ class Connection:
             """, (response, trigger, nsfw, creator, self.getCurrentDateTime(), creatorID))
 
             c = self.conn.execute("""select max(ID) from FACTS where MSG = ?""", (response,))
-            results = c.fetchall
+            results = c.fetchall()
             maxID = results[0][0]
 
             c = self.conn.execute("""
             insert into HISTORY (FACT, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
-            (select ID, MSG, DELETED, NSFW, USER, CREATED, USER_ID from FACTS where ID = ?)""", (maxID))
+            select ID, MSG, DELETED, NSFW, CREATOR, CREATED, CREATOR_ID from FACTS where ID = ?
+            """, (maxID,))
             self.conn.commit()
 
             print(f'Remembering {maxID}: [{trigger}] is [{response}]')
@@ -331,6 +403,7 @@ class Connection:
                 """, (trigger,))
 
             results = c.fetchall()
+            
             if len(results)==0:
                 id, msgOut = None, None
             else:

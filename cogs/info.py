@@ -6,7 +6,6 @@ import parseUtil
 import wikipedia
 import random
 import inspect
-
 from discord.ext import commands
 
 class Information(commands.Cog):
@@ -29,7 +28,7 @@ class Information(commands.Cog):
                 page = wikipedia.page(searchTerm)
             except wikipedia.DisambiguationError as e:
                 choice = random.choice(e.options)
-                print(f"""{searchTerm} didn't work, trying {choice}""")
+                print(f"""wiki "{searchTerm}"" didn't work, trying {choice}""")
                 page = wikipedia.page(choice)
             except Exception as e:
                 print(inspect.stack()[0][3])
