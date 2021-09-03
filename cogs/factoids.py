@@ -41,6 +41,8 @@ class Factoids(commands.Cog):
                 brief = 'Set frequency of random factoids.')
     async def setfreq(self, ctx, frequency: typing.Optional[int] = DEFAULTPERC):
         user = ctx.message.author.id
+        print(self.bot.owner_id)
+        print(user)
 
         try:
             if self.bot.owner_id == user or ctx.guild.owner_id == user:
@@ -90,6 +92,7 @@ class Factoids(commands.Cog):
                 msgOut = f"Fact with ID {fact[0]} has been marked {delDesc}d."
 
         await ctx.send(msgOut)
+        
     @commands.command(name = 'wtf', 
                     aliases = ['what', 'wth'], 
                     description = 'Retrieves info on specified factoid or last factoid if no id provided.', 
@@ -326,27 +329,4 @@ to
             if not success:
                 msgOut = f"""Something went wrong shutting up for {shutUpDuration} {'minutes' if shutUpDuration != 1 else 'minute'}."""
 
-        def check(reaction,user):
-            return user == ctx.author and str(reaction.emoji) in ["◀️", "▶️"]
-        
-        while True:
-            try:
-                reaction, user = await self.bot.wait_for("reaction_add", timeout=60, check=check)
-
-                if str(reaction.emoji) == "▶️" and curPage != pages:
-                    curPage += 1
-                    await message.edit(content=f"Page {curPage}/{pages}:\n{contents[curPage-1]}")
-                    await message.remove_reaction(reaction, user)
-
-                elif str(reaction.emoji) == "◀️" and curPage > 1:
-                    curPage -= 1
-                    await message.edit(content=f"Page {curPage}/{pages}:\n{contents[curPage-1]}")
-                    await message.remove_reaction(reaction, user)
-
-                else:
-                    await message.remove_reaction(reaction, user)
-                    # removes reactions if the user tries to go forward on the last page or
-                    # backwards on the first page
-            except asyncio.TimeoutError:
-                await message.delete()
-                break
+        await ctx.send(msgOut)
