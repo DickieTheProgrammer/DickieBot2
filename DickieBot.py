@@ -7,6 +7,7 @@ import re
 import random
 import string
 import parseUtil
+import sys
 from cogs import general, factoids, inventory, info
 from discord import member, utils
 from dbFunctions import Connection
@@ -16,6 +17,7 @@ from discord.ext import commands
 load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 DATABASE = os.getenv('DATABASE')
+OWNER = os.getenv('OWNER')
 intents = discord.Intents.all()
 
 db = Connection(DATABASE)
@@ -23,7 +25,10 @@ db = Connection(DATABASE)
 botID = None
 botName = None
 help_command = commands.DefaultHelpCommand(no_category = 'Other')
-bot = commands.Bot(command_prefix = '!', description = 'DickieBot: The impressionable Discord bot!', help_command = help_command, intents = intents)
+bot = commands.Bot(command_prefix = '!', 
+                description = 'DickieBot: The impressionable Discord bot!', 
+                help_command = help_command, 
+                intents = intents)
 
 @bot.event
 async def on_ready():
@@ -51,8 +56,41 @@ async def on_guild_join(guild):
     role = utils.get(guild.roles,name=botName)
     roleID = 0 if role == None else role.id
     for i in guild.text_channels: 
-        print(f"""{i.name} in {guild.name} initialized.""")
-        db.initGuild(guild.id, roleID, i.id)
+        if db.initGuild(guild.id, roleID, i.id):
+            print(f"""{i.name} in {guild.name} initialized.""")
+        else:
+            print(f"""{i.name} in {guild.name} was not initialized.""")
+
+@bot.event
+async def on_guild_channel_create(channel):
+    if type(channel) != discord.TextChannel:
+            return
+
+    role = utils.get(channel.guild.roles,name=botName)
+    roleID = 0 if role == None else role.id
+    if db.initGuild(channel.guild.id, roleID, channel.id):
+        print(f"""{channel.name} in {channel.guild.name} initialized.""")
+    else:
+        print(f"""{channel.name} in {channel.guild.name} was not initialized.""")
+
+@bot.event
+async def on_guild_channel_delete(channel):
+    if db.deleteGuildState(channel.guild.id, channel.id):
+        print(f"""{channel.name} in {channel.guild.name} deleted.""")
+    else: 
+        print(f"""{channel.name} in {channel.guild.name} was not deleted.""")
+
+@bot.event
+async def on_guild_remove(guild):
+    if db.deleteGuildState(guild.id):
+        print(f"""{guild.name} deleted.""")
+    else:
+        print(f"""{guild.name} was not deleted.""")
+
+@bot.event
+async def on_disconnect():
+    db.close()
+    sys.exit("Disconnecting")
 
 @bot.event
 async def on_member_update(before, after):
@@ -72,8 +110,10 @@ async def on_message(message):
     botCommand = True if message.content.startswith('!') else False
     id = None
 
+    # Ignore his own messages
     if message.author == bot.user: return
 
+    # Reject DMs. May do something with this later.
     if isinstance(message.channel, discord.channel.DMChannel): 
         await message.channel.send("""I don't _do_ "DM"s""")
         return
@@ -108,15 +148,17 @@ async def on_message(message):
 
         # Check to see if factoid triggered
         msgInParts = msgIn.split('$self')
-        msgIn = '$self'.join(e.strip(string.punctuation).lower() for e in msgInParts).strip()
+        msgIn = '$self'.join(e.translate(str.maketrans(dict.fromkeys(string.punctuation))).lower() for e in msgInParts).strip()
 
         id, msgOut = db.getFact(msgIn,nsfwTag)
+        if id: print(f'Triggered {id} with {msgIn}')
 
         # If factoid not triggered by incoming message, check for random
         randomNum = random.randint(1,100)
         print(f"Random number {randomNum} <= {db.getFreq(message.guild.id, message.channel.id)} ({message.guild.name}|{message.channel.name})?")
         if id == None and randomNum <= db.getFreq(message.guild.id, message.channel.id): 
             id, msgOut = db.getFact(None,nsfwTag)
+            print(f'Triggered {id}')
 
         # Update called metrics for factoid if called
         if id != None:
@@ -157,9 +199,6 @@ async def on_message(message):
 bot.add_cog(general.General(bot))
 bot.add_cog(info.Information(bot))
 bot.add_cog(inventory.Inventory(bot, db))
-bot.add_cog(factoids.Factoids(bot, db))
-try:
-    bot.run(TOKEN)
-except:
-    db.close()
-    print("Disconnecting")
+bot.add_cog(factoids.Factoids(bot, db, OWNER))
+
+bot.run(TOKEN)

@@ -6,15 +6,17 @@ import math
 import time
 import dbFunctions
 import parseUtil
+import discord
 from discord.ext import commands
 
 DEFAULTPERC = 5
 
 class Factoids(commands.Cog):
     
-    def __init__(self, bot, db: dbFunctions.Connection):
+    def __init__(self, bot, db: dbFunctions.Connection, owner):
         self.bot = bot
         self.db = db
+        self.owner = owner
 
         self.noList= [
             "https://c.tenor.com/2yJBnYOY_j8AAAAC/tonton-tonton-sticker.gif",
@@ -45,7 +47,7 @@ class Factoids(commands.Cog):
         print(user)
 
         try:
-            if self.bot.owner_id == user or ctx.guild.owner_id == user:
+            if self.owner == str(user) or ctx.guild.owner_id == user:
                 self.db.updateFreq(ctx.guild.id, frequency, ctx.channel.id)
                 msgOut = f"""You're the boss. Frequency for {ctx.channel.name} set to {frequency}%"""
             else:
@@ -95,25 +97,38 @@ class Factoids(commands.Cog):
         
     @commands.command(name = 'wtf', 
                     aliases = ['what', 'wth'], 
-                    description = 'Retrieves info on specified factoid or last factoid if no id provided.', 
+                    description = """Retrieves info on specified factoid or last factoid if no id provided.
+                    Message displaying info will self-destruct after 60s of inactivity.""", 
                     brief = 'Retrieve factoid info')
     async def wtf(self, ctx, id: typing.Optional[int] = None):
         fact = self.db.factInfo(id if id != None else self.db.getLastFactID(ctx.guild.id, ctx.channel.id)) if id == None or str(id).isnumeric() else []
 
         if fact == None:
             msgOut = f'Something went wrong retrieving fact info for ID {id}'
+            await ctx.send(msgOut)
         elif len(fact) == 0:
             msgOut = """¯\_(ツ)_/¯"""
+            await ctx.send(msgOut)
         else: 
             st = '||' if fact[3]==1 and not ctx.channel.is_nsfw else ''
-            msgOut = f"""ID: {str(fact[0])}\nTrigger: {st}{fact[1] if fact[1] != None else "*None*"}{st}\nResponse: {st}{fact[2]}{st}\nNSFW: {str(fact[3]==1)}\nDeleted: {str(fact[4]==1)}\nCreator: {fact[5]}\nCreated: {fact[6]}\nTimes Triggered: {fact[7]}\nLast Triggered: {fact[8]}
-            """
-        await ctx.send(msgOut)
+            
+            msgEmbed = discord.Embed(title=f"{fact[0]}",
+                                    description = f"""Trigger: {st}{fact[1] if fact[1] != None else "*None*"}{st}\nResponse: {st}{fact[2]}{st}\nNSFW: {str(fact[3]==1)}\nDeleted: {str(fact[4]==1)}\nCreator: {fact[5]}\nCreated: {fact[6]}\nTimes Triggered: {fact[7]}\nLast Triggered: {fact[8]}""",
+                                    color = discord.Color.blue())
+            msgEmbed.set_footer(text=f"""{'Spoiler tags for SFW channel' if st else ''}""")
+            
+            message = await ctx.send(embed = msgEmbed)
 
+            def check(reaction, user): return(False)
+            
+            try:
+                await self.bot.wait_for("reaction_add",timeout=60, check=check)
+            except asyncio.TimeoutError:
+                await message.delete()
+    
     @commands.command(name='onrand', 
                 aliases = ['onrandnsfw'],
-                description="""Give me something random to do/say. Uses the same variables as !on.
-                Use !onrandnsfw for nsfw factoids.""", 
+                description="""Give me something random to do/say. Uses the same variables as !on.\nUse !onrandnsfw for nsfw factoids.""", 
                 brief = 'Give me something to randomly blurt.')
     async def onrand(self, ctx, *, args: str):
         botCommand = True if args.startswith('!') else False
@@ -155,21 +170,21 @@ class Factoids(commands.Cog):
             return
 
         results = self.db.modFact(lastID, pattern, repl, ctx.message.author.display_name, ctx.message.author.id)
+        print(results)
         
-        # results returned list = [success, known, matched, changed, oldResp, newResp]
+        # results returned list = [success, known, matched, valid, changed, oldResp, newResp]
         if not results[1]:
             msgOut = f"Fact ID {lastID} not found."
         elif not results[2]:
             msgOut = f"""Pattern "{pattern}" not found."""
         elif not results[3]:
+            msgOut = f"""Replacement must result in >=4 characters and not start with !"""
+        elif not results[4]:
             msgOut = f"""Message wasn't changed by this substitution."""
         elif not results[0]:
             msgOut = f"Something went wrong modifying fact id {lastID}"
         else:
-            msgOut = f"""Successfully changed fact {id} response from 
-{results[4]}
-to
-{results[5]}"""
+            msgOut = f"""Successfully changed fact {id} response from\n{results[5]}\nto\n{results[6]}"""
 
         await ctx.send(msgOut)                
 
@@ -214,7 +229,7 @@ to
             
             cleanTrigger = parseUtil.mentionToSelfVar(trigger, self.db.getBotRole(ctx.guild.id, ctx.channel.id), self.bot.user.id)
             triggerParts = cleanTrigger.split('$self')
-            cleanTrigger = '$self'.join(e.strip(string.punctuation).lower() for e in triggerParts).strip()
+            cleanTrigger = '$self'.join(e.translate(str.maketrans(dict.fromkeys(string.punctuation))).lower() for e in triggerParts).strip()
 
             if botCommand:
                 msgOut = "I'm not remembering bot commands."
@@ -245,8 +260,7 @@ to
                     brief = 'Get factoid change log')
     async def hist(self, ctx, id: typing.Optional[int] = 0):
         searchID = self.db.getLastFactID(ctx.guild.id) if id == 0 else id
-        contents = []
-        
+
         success, history = self.db.getFactHist(searchID)
 
         if not success:
@@ -260,11 +274,14 @@ to
         curPage = 1
 
         st = '||' if history[0][4]==1 and not ctx.channel.is_nsfw else ''
-        for rec in range(pages):
-            contents.append(f"""Page {curPage}/{pages}:\nID: {history[rec-1][0]}\nTrigger: {st}{history[rec-1][1]}{st}\nOldMsg: {st}{history[rec-1][2]}{st}\nNewMsg: {st}{history[rec-1][3]}{st}\nDeleted: {history[rec-1][4]==1}\nNSFW: {history[rec-1][5]==1}\nUser: {history[rec-1][6]}\nDate: {history[rec-1][7]}
-            """)
 
-        message = await ctx.send(contents[curPage-1])
+        msgEmbed = discord.Embed(title = f"""{history[curPage-1][0]}""",
+                                description = f"""Trigger: {st}{history[curPage-1][1]}{st}\nOldMsg: {st}{history[curPage-1][2]}{st}\nNewMsg: {st}{history[curPage-1][3]}{st}\nDeleted: {history[curPage-1][4]==1}\nNSFW: {history[curPage-1][5]==1}\nUser: {history[curPage-1][6]}\nDate: {history[curPage-1][7]}""",
+                                color = discord.Color.blue())
+
+        msgEmbed.set_footer(text=f"""Page {curPage} of {pages}. {'Spoiler tags for SFW channel' if st else ''}""")
+
+        message = await ctx.send(embed = msgEmbed)
 
         await message.add_reaction("◀️")
         await message.add_reaction("▶️")
@@ -278,12 +295,22 @@ to
 
                 if str(reaction.emoji) == "▶️" and curPage != pages:
                     curPage += 1
-                    await message.edit(content=f"Page {curPage}/{pages}:\n{contents[curPage-1]}")
+                    msgEmbed = discord.Embed(title = f"""{history[curPage-1][0]}""",
+                                            description = f"""Trigger: {st}{history[curPage-1][1]}{st}\nOldMsg: {st}{history[curPage-1][2]}{st}\nNewMsg: {st}{history[curPage-1][3]}{st}\nDeleted: {history[curPage-1][4]==1}\nNSFW: {history[curPage-1][5]==1}\nUser: {history[curPage-1][6]}\nDate: {history[curPage-1][7]}""",
+                                            color = discord.Color.blue())
+
+                    msgEmbed.set_footer(text=f"""Page {curPage} of {pages}. {'Spoiler tags for SFW channel' if st else ''}""")
+                    await message.edit(embed = msgEmbed)
                     await message.remove_reaction(reaction, user)
 
                 elif str(reaction.emoji) == "◀️" and curPage > 1:
                     curPage -= 1
-                    await message.edit(content=f"Page {curPage}/{pages}:\n{contents[curPage-1]}")
+                    msgEmbed = discord.Embed(title = f"""{history[curPage-1][0]}""",
+                                            description = f"""Trigger: {st}{history[curPage-1][1]}{st}\nOldMsg: {st}{history[curPage-1][2]}{st}\nNewMsg: {st}{history[curPage-1][3]}{st}\nDeleted: {history[curPage-1][4]==1}\nNSFW: {history[curPage-1][5]==1}\nUser: {history[curPage-1][6]}\nDate: {history[curPage-1][7]}""",
+                                            color = discord.Color.blue())
+
+                    msgEmbed.set_footer(text=f"""Page {curPage} of {pages}. {'Spoiler tags for SFW channel' if st else ''}""")
+                    await message.edit(embed = msgEmbed)
                     await message.remove_reaction(reaction, user)
 
                 else:
