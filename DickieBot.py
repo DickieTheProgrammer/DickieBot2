@@ -63,6 +63,7 @@ async def on_guild_join(guild):
 
 @bot.event
 async def on_guild_channel_create(channel):
+    # If new text channel created, intialize.
     if type(channel) != discord.TextChannel:
             return
 
@@ -75,6 +76,7 @@ async def on_guild_channel_create(channel):
 
 @bot.event
 async def on_guild_channel_delete(channel):
+    # If channel removed, purge the record holding its state
     if db.deleteGuildState(channel.guild.id, channel.id):
         print(f"""{channel.name} in {channel.guild.name} deleted.""")
     else: 
@@ -82,15 +84,11 @@ async def on_guild_channel_delete(channel):
 
 @bot.event
 async def on_guild_remove(guild):
+    # If guild is removed, purge the record(s) holding its state
     if db.deleteGuildState(guild.id):
         print(f"""{guild.name} deleted.""")
     else:
         print(f"""{guild.name} was not deleted.""")
-
-@bot.event
-async def on_disconnect():
-    db.close()
-    sys.exit("Disconnecting")
 
 @bot.event
 async def on_member_update(before, after):
