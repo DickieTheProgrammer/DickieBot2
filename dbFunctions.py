@@ -14,7 +14,7 @@ class Connection:
     def __init__(self, db):
         self.db = db
         
-        self.conn = sql.connect(self.db)
+        self.conn = sql.connect(self.db, cached_statements=0)
 
         c = self.conn.execute("""
             CREATE TABLE IF NOT EXISTS FACTS (

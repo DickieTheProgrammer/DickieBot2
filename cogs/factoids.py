@@ -43,6 +43,8 @@ class Factoids(commands.Cog):
                 brief = 'Set frequency of random factoids.')
     async def setfreq(self, ctx, frequency: typing.Optional[int] = DEFAULTPERC):
         user = ctx.message.author.id
+        print(self.bot.owner_id)
+        print(user)
 
         try:
             if self.owner == str(user) or ctx.guild.owner_id == user:
