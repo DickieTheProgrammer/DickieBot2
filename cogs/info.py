@@ -6,6 +6,8 @@ import parseUtil
 import wikipedia
 import random
 import inspect
+import fandom
+import re
 from discord.ext import commands
 
 class Information(commands.Cog):
@@ -16,6 +18,49 @@ class Information(commands.Cog):
     @commands.Cog.listener()
     async def on_ready(self):
         print("Information cog loaded")
+
+    @commands.command(name='fandom',
+                    description = """Retrieves Fandom summary for the provided search term in the provided wiki, returning the best approximation of the article summary as can be derived from the subpar API.
+                    The wikiName arg refers to the fandom site's subdomain, such as "memory-alpha" (memory-alpha.fandom.com) or "minecraft" (minecraft.fandom.com)""",
+                    brief = 'Returns Fandom wiki article')
+    async def fandom(self, ctx, wikiName, *, searchTerm = None):
+        if searchTerm == None:
+            await ctx.send("I haven't figured out random articles yet.")
+            return
+        else:
+            try:
+                results = fandom.search(searchTerm, wikiName)
+                if len(results)==0:
+                    await ctx.send(f"""{searchTerm} returned no results from {wikiName}.fandom.com""")
+                    return
+                else:
+                    page = fandom.page(pageid = results[0][1], wiki = wikiName)   
+                    url = page.url
+                    title = page.title
+
+                    #summary doesn't work right, so I'll parse out the suggestions and quotes from "content"
+                    content = re.sub(r'This article is.*\n','', page.content['content'])
+                    content = re.sub(r'For.*\n','', page.content['content'])
+                    #content = re.sub(r'"[^"]*"\n', '', content)
+                    #content = re.sub(rf'{chr(8211)}.*\)\n','',content)
+
+                    #for readability
+                    content = re.sub(r"""(?<!["”])\n""",'\n\n', content)
+
+                    if len(content) > 3000: content = content[:(content[:3000].rfind('.')+1)]
+                    print(len(content))
+            except:
+                await ctx.send("Something went wrong, probably that wiki doesn't exist.")
+                return
+
+            msgEmbed = discord.Embed(title = f"{title}",
+                                    url = f"{url}",
+                                    description = f"{content.strip()}",
+                                    color = discord.Color.blue())
+            msgEmbed.add_field(name = "\u200B", 
+                            value = f"""Via [https://{wikiName}.fandom.com](https://{wikiName}.fandom.com)""")
+
+            await ctx.send(embed = msgEmbed)
 
     @commands.command(name = 'wiki',
                     description = """Retrieves Wikipedia summary for the provided search term. Omitting search term returns random article summary.""",
@@ -36,23 +81,24 @@ class Information(commands.Cog):
                 print(e)
                 return
         
+        content = re.sub(r'\n','\n\n', page.summary).strip()
         msgEmbed = discord.Embed(title = f"{page.title}",
                             url = f"{page.url}",
-                            description = f"{page.summary}",
+                            description = f"{content}",
                             color = discord.Color.blue())
 
         await ctx.send(embed = msgEmbed)
 
     @commands.command(name = 'ud', 
                     description = """Retrieves Urban Dictionary definition of search term. Omitting search term returns list of random definitions.
-                    The pages of definitions displayed in chat are navigable only by the caller and will eventually self-destruct after 60s of inactivity.""", 
+                    The pages of definitions displayed in chat are navigable only by the caller. The bot response will self-destruct after 5 minutes.""", 
                     brief = 'Get Urban Dictionary definition')
     async def ud(self, ctx, *, searchTerm = None):
         st = '' # Spoiler Tags
 
         if ctx.channel.nsfw == False:
-            #await ctx.send("This channel is SFW. Urban dictionary... is not.")
-            #return
+            await ctx.send("This channel is SFW. Urban dictionary... is not.")
+            return
             st = "||"
 
         URL = """https://api.urbandictionary.com/v0/"""
@@ -100,12 +146,12 @@ class Information(commands.Cog):
         await message.add_reaction("◀️")
         await message.add_reaction("▶️")
 
-        def check(reaction, user):
-            return user == ctx.author and str(reaction.emoji) in ["◀️", "▶️"]
+        #def check(reaction, user):
+        #    return user == ctx.author and str(reaction.emoji) in ["◀️", "▶️"]
 
         while True:
             try:
-                reaction, user = await self.bot.wait_for("reaction_add", timeout=60, check=check)
+                reaction, user = await self.bot.wait_for("reaction_add", timeout=300, check=check)
 
                 if str(reaction.emoji) == "▶️" and curPage != pages:
                     curPage += 1

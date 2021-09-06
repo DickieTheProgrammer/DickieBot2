@@ -14,7 +14,7 @@ class Connection:
     def __init__(self, db):
         self.db = db
         
-        self.conn = sql.connect(self.db, cached_statements=0)
+        self.conn = sql.connect(self.db)
 
         c = self.conn.execute("""
             CREATE TABLE IF NOT EXISTS FACTS (
@@ -28,7 +28,15 @@ class Connection:
                 CREATED         VARCHAR2(23), /* YYYY-MM-DD HH:MI:SS TZ */
                 LASTCALLED      VARCHAR2(23), /* YYYY-MM-DD HH:MI:SS TZ */
                 CREATOR_ID      VARCHAR2(37),
-                UNIQUE (MSG, TRIGGER)
+                REACTION        INTEGER NOT NULL DEFAULT 0
+            )
+        """)
+
+        c = self.conn.execute("""
+            CREATE UNIQUE INDEX IF NOT EXISTS FINDX ON FACTS (
+                ifnull(TRIGGER,'0'),
+                MSG,
+                REACTION
             )
         """)
 
@@ -323,7 +331,7 @@ class Connection:
     def addRandFact(self, response, nsfw, creator, creatorID):
         success = False
         known = False
-        maxID = None
+        id = None
 
         try:
             c = self.conn.execute("""
@@ -333,18 +341,23 @@ class Connection:
 
             c = self.conn.execute("""select max(ID) from FACTS where MSG = ?""", (response,))
             results = c.fetchall()
-            maxID = results[0][0]
+            id = results[0][0]
 
             c = self.conn.execute("""
             insert into HISTORY (FACT, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
             select ID, MSG, DELETED, NSFW, CREATOR, CREATED, CREATOR_ID from FACTS where ID = ?
-            """, (maxID,))
+            """, (id,))
             self.conn.commit()
 
-            print(f'Remembering {maxID}:[{response}]')
+            print(f'Remembering {id}:[{response}]')
             success = True
         except sql.IntegrityError:
             success = False
+
+            c = self.conn.execute("""select ID from FACTS where MSG = ?""", (response,))
+            results = c.fetchall()
+            id = results[0][0]
+
             known = True
         except Exception as e:
             print(inspect.stack()[0][3])
@@ -352,12 +365,12 @@ class Connection:
             print(e)
             self.conn.rollback()
 
-        return(success, known, maxID)
+        return(success, known, id)
 
     def addFact(self, trigger, response, nsfw, creator, creatorID):
         success = False
         known = False
-        maxID = None
+        id = None
 
         try:
             c = self.conn.execute("""
@@ -367,17 +380,22 @@ class Connection:
 
             c = self.conn.execute("""select max(ID) from FACTS where MSG = ?""", (response,))
             results = c.fetchall()
-            maxID = results[0][0]
-            print(maxID)
+            id = results[0][0]
+            print(id)
 
             c = self.conn.execute("""
             insert into HISTORY (FACT, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
-            select ID, MSG, DELETED, NSFW, CREATOR, CREATED, CREATOR_ID from FACTS where ID = ?""", (maxID,))
+            select ID, MSG, DELETED, NSFW, CREATOR, CREATED, CREATOR_ID from FACTS where ID = ?""", (id,))
             self.conn.commit()
-            print(f'Remembering {maxID}: [{trigger}] is [{response}]')
+            print(f'Remembering {id}: [{trigger}] is [{response}]')
             success = True
         except sql.IntegrityError:
             success = False
+
+            c = self.conn.execute("""select ID from FACTS where MSG = ? and trigger = ?""", (response, trigger))
+            results = c.fetchall()
+            id = results[0][0]
+
             known = True
         except Exception as e:
             print(inspect.stack()[0][3])
@@ -385,7 +403,7 @@ class Connection:
             print(e)
             self.conn.rollback()
 
-        return(success, known, maxID)
+        return(success, known, id)
 
     def getFact(self, trigger, nsfw):
         success = False
@@ -401,7 +419,6 @@ class Connection:
                     where DELETED = 0 and TRIGGER is null and NSFW in ("""+','.join(str(n) for n in sqlIn)+""") 
                     order by RANDOM() limit 1"""
                 c = self.conn.execute(sql)
-                print(sql)
             else:
                 # Triggered Factoid
                 sql = f"""

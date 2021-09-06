@@ -72,7 +72,7 @@ class Factoids(commands.Cog):
             await ctx.send("This is not a valid factoid ID")
             return
 
-        fact = self.db.factInfo(id if id != None else self.db.getLastFactID(ctx.guild.id)) if id == None or str(id).isnumeric() else []
+        fact = self.db.factInfo(id if id != None else self.db.getLastFactID(ctx.guild.id, ctx.channel.id)) if id == None or str(id).isnumeric() else []
 
         delDesc = 'delete' if ctx.invoked_with in ['delete','del','baleet'] else 'undelete'
         delNum = 1 if ctx.invoked_with in ['delete','del','baleet'] else 0
@@ -142,7 +142,7 @@ class Factoids(commands.Cog):
                 msgOut = f"""Ok. I'll randomly say "{args}\"\n(ID: {id})"""
             else:
                 if known:
-                    msgOut = 'Oh, I already know that.'
+                    msgOut = f"""Oh, I already know that. It's ID {id}."""
                 else:
                     msgOut = 'Something went wrong adding this factoid.'
 
@@ -155,7 +155,7 @@ class Factoids(commands.Cog):
                     !mod <id> {substitution string}, if id blank, updates last called factoid""",
                     brief = 'Modify factoid response')
     async def mod(self, ctx, id: typing.Optional[int] = 0, *, regEx):
-        lastID = self.db.getLastFactID(ctx.guild.id) if id == 0 else id
+        lastID = self.db.getLastFactID(ctx.guild.id, ctx.channel.id) if id == 0 else id
 
         try:
             if regEx.endswith('//'):
@@ -192,7 +192,7 @@ class Factoids(commands.Cog):
                     brief = 'or !sfw, mark factoid NSFW/SFW')
     async def nsfw(self, ctx, id: typing.Optional[int] = 0):        
         
-        lastID = self.db.getLastFactID(ctx.guild.id) if id == 0 else id
+        lastID = self.db.getLastFactID(ctx.guild.id, ctx.channel.id) if id == 0 else id
         valueNSFW = 1 if ctx.invoked_with == 'nsfw' else 0
 
         success, changed = self.db.toggleNSFW(lastID, valueNSFW)
@@ -245,7 +245,7 @@ class Factoids(commands.Cog):
                     msgOut = f"""Ok. When I see "{trigger}" I'll say "{response}\"\n(ID: {id})"""
                 else:
                     if known:
-                        msgOut = 'Oh, I already know that.'
+                        msgOut = f"""Oh, I already know that. Its ID {id}."""
                     else:
                         msgOut = 'Something went wrong adding this factoid.'
 
@@ -257,7 +257,7 @@ class Factoids(commands.Cog):
                     The change log pages displayed in chat are navigable only by the caller and will eventually self-destruct after 60s of inactivity.""",
                     brief = 'Get factoid change log')
     async def hist(self, ctx, id: typing.Optional[int] = 0):
-        searchID = self.db.getLastFactID(ctx.guild.id) if id == 0 else id
+        searchID = self.db.getLastFactID(ctx.guild.id, ctx.channel.id) if id == 0 else id
 
         success, history = self.db.getFactHist(searchID)
 
