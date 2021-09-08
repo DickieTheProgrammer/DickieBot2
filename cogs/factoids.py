@@ -7,6 +7,7 @@ import time
 import dbFunctions
 import parseUtil
 import discord
+import inspect
 from discord.ext import commands
 
 DEFAULTPERC = 5
@@ -112,7 +113,7 @@ class Factoids(commands.Cog):
         else: 
             st = '||' if fact[3]==1 and not ctx.channel.is_nsfw else ''
             
-            msgEmbed = discord.Embed(title=f"{fact[0]}",
+            msgEmbed = discord.Embed(title=f"{fact[0]}{' (Reaction)' if fact[9]==1 else ''}",
                                     description = f"""Trigger: {st}{fact[1] if fact[1] != None else "*None*"}{st}\nResponse: {st}{fact[2]}{st}\nNSFW: {str(fact[3]==1)}\nDeleted: {str(fact[4]==1)}\nCreator: {fact[5]}\nCreated: {fact[6]}\nTimes Triggered: {fact[7]}\nLast Triggered: {fact[8]}""",
                                     color = discord.Color.blue())
             msgEmbed.set_footer(text=f"""{'Spoiler tags for SFW channel' if st else ''}""")
@@ -212,17 +213,22 @@ class Factoids(commands.Cog):
 
     @commands.command(name = 'on', 
                     aliases = ['onnsfw'], 
-                    description = f"""Assign a response to triggering phrase. !on<nsfw> {{trigger}} -say {{response}}. 
+                    description = f"""Assign a response to triggering phrase. !on<nsfw> {{trigger}} -say|-react {{response}}. 
                     Using !onnsfw marks the response as NSFW and will not be triggered in SFW channels.
                     Use $self to refer to the bot in the trigger. i.e. !on "Hi $self" -say Hello. 
                     Use $rand, $nick, and $item in response to sub in a random user, the triggering user, and an inventory item, respectively.
-                    $item consumes the inventory item.""", 
+                    $item consumes the inventory item.
+                    Using -react will expect a single emoji as the response arg. All reactions are SFW.""", 
                     brief = 'Teach me to respond to something')
     async def on(self, ctx, *, args):
-        parts = args.split('-say')
-        if len(parts) <= 1:
-            msgOut = 'Usage is !on<nsfw> trigger -say response'
-        else:
+        usage = 'Usage is !on<nsfw> trigger -say|react response.'
+
+        if args.find('-say') > 0:
+            parts = args.split('-say')
+            if len(parts) <= 1:
+                msgOut = usage
+                await ctx.send(msgOut)
+            
             trigger = parseUtil.convertEmote(parts[0]).strip()
             response = ''.join(parts[1:]).strip()
             botCommand = True if trigger.startswith('!') or response.startswith('!') else False
@@ -234,22 +240,70 @@ class Factoids(commands.Cog):
             if botCommand:
                 msgOut = "I'm not remembering bot commands."
             elif len(cleanTrigger) < 4:
-                msgOut = 'Trigger must be >= 4 alphanumeric characters'
+                msgOut = 'Trigger must be >= 4 alphanumeric characters.'
             else:    
                 if trigger.startswith('_') and trigger.endswith('_'):
                     cleanTrigger = '_' + cleanTrigger + '_'
 
                 nsfw = 1 if ctx.invoked_with == 'onnsfw' else 0
 
-                success, known, id = self.db.addFact(cleanTrigger, response, nsfw, ctx.message.author.display_name, ctx.message.author.id)
+                success, known, id = self.db.addFact(cleanTrigger, response, nsfw, ctx.message.author.display_name, ctx.message.author.id, 0)
 
                 if success:
                     msgOut = f"""Ok. When I see "{trigger}" I'll say "{response}\"\n(ID: {id})"""
                 else:
                     if known:
-                        msgOut = f"""Oh, I already know that. Its ID {id}."""
+                        msgOut = f"""Oh, I already know that. It's ID {id}."""
                     else:
                         msgOut = 'Something went wrong adding this factoid.'
+
+        elif args.find('-react') > 0:
+            parts = args.split('-react')
+
+            if len(parts) <= 1:
+                msgOut = usage
+                await ctx.send(msgOut)
+                return
+
+            trigger = parseUtil.convertEmote(parts[0]).strip()    
+            reaction = parts[1].strip()     
+            if len(reaction) == 0:
+                msgOut = usage
+                await ctx.send(msgOut)
+                return
+            
+            botCommand = True if trigger.startswith('!') else False
+            
+            cleanTrigger = parseUtil.mentionToSelfVar(trigger, self.db.getBotRole(ctx.guild.id, ctx.channel.id), self.bot.user.id)
+            triggerParts = cleanTrigger.split('$self')
+            cleanTrigger = '$self'.join(e.translate(str.maketrans(dict.fromkeys(string.punctuation))).lower() for e in triggerParts).strip()
+
+            if botCommand:
+                msgOut = "I'm not remembering bot commands."
+            elif len(cleanTrigger) < 4:
+                msgOut = 'Trigger must be >= 4 alphanumeric characters.'
+            else:
+                try:
+                    await ctx.message.add_reaction(parts[1].strip())
+                except Exception as e:
+                    print(inspect.stack()[0][3])
+                    print(inspect.stack()[1][3])
+                    print(e)
+                    await ctx.send('Invalid emoji... I think')
+                    return
+    
+                success, known, id = self.db.addFact(trigger, reaction, 0, ctx.message.author.display_name, ctx.message.author.id, 1)
+
+                if success:
+                    msgOut = f"""Ok. When I see "{trigger}" I'll do a "{reaction}\"\n(ID: {id})"""
+                else:
+                    if known:
+                        msgOut = f"""Oh, I already know that. It's ID {id}."""
+                    else:
+                        msgOut = 'Something went wrong adding this factoid.'
+
+        else:
+            msgOut = usage
 
         await ctx.send(msgOut)
 
