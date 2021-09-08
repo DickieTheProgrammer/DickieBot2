@@ -8,59 +8,114 @@ import random
 import inspect
 import fandom
 import re
+import pyowm
+import inspect
 from discord.ext import commands
+
 
 class Information(commands.Cog):
 
-    def __init__(self,bot):
+    def __init__(self, bot, apiKey):
         self.bot = bot
+
+        try:
+            self.owm = pyowm.OWM(apiKey)
+        except Exception as e:
+            self.owm = None
+            self.mgr = None
+            print(inspect.stack()[0][3])
+            print(inspect.stack()[1][3])
+            print(e)
+
+    def fandomRedirect(self, subdomain):
+        redirectSubdomain = None
+        r = requests.get(f'http://{subdomain}.fandom.com')
+        if r.status_code == 200:
+            redirectSubdomain = re.search(r'^https://(.*)\.fandom.*$',r.url).group(1) 
+
+        return(redirectSubdomain)
 
     @commands.Cog.listener()
     async def on_ready(self):
         print("Information cog loaded")
+
+    @commands.command(name='weather',
+                    description = """Get the weather at a given location, default 'Huntsville, AL'""",
+                    brief = 'Get the weather at a location')
+    async def weather(self, ctx, *, location='Huntsville, AL, US'):
+        if not self.owm:
+            await ctx.send("OWM Weather Not Connected")
+            return
+
+        try:
+            mgr = self.owm.weather_manager()
+            try:
+                observation = mgr.weather_at_place(location)
+            except:
+                observation = mgr.weather_at_place(location+', US')
+            weather = observation.weather
+            resolvedLoc = observation.to_dict()['location']['name'] + ', ' + observation.to_dict()['location']['country']
+            status = weather.detailed_status
+            td = weather.temperature('fahrenheit')
+            temp = f"""{td['temp']}, feels like {td['feels_like']}"""
+            humidity = f"""{weather.humidity}%"""
+        except:
+            await ctx.send(f'Unable to retrieve weather information from {location}')
+            return
+
+        msgEmbed = discord.Embed(title = f"Current weather for {resolvedLoc}",
+                                description = f"Status: {status}\nTemp: {temp}\nHumidity: {humidity}",
+                                color = discord.Color.blue())  
+        msgEmbed.add_field(name = "\u200B", 
+                        value = f"""Via [https://openweathermap.org/](https://openweathermap.org/)""")
+        await ctx.send(embed = msgEmbed)
 
     @commands.command(name='fandom',
                     description = """Retrieves Fandom summary for the provided search term in the provided wiki, returning the best approximation of the article summary as can be derived from the subpar API.
                     The wikiName arg refers to the fandom site's subdomain, such as "memory-alpha" (memory-alpha.fandom.com) or "minecraft" (minecraft.fandom.com)""",
                     brief = 'Returns Fandom wiki article')
     async def fandom(self, ctx, wikiName, *, searchTerm = None):
-        if searchTerm == None:
-            await ctx.send("I haven't figured out random articles yet.")
+        subdomain = self.fandomRedirect(wikiName)
+
+        if subdomain == None:
+            await ctx.send(f"""Subdomain {wikiName} not found.""")
             return
-        else:
-            try:
-                results = fandom.search(searchTerm, wikiName)
-                if len(results)==0:
-                    await ctx.send(f"""{searchTerm} returned no results from {wikiName}.fandom.com""")
-                    return
-                else:
-                    page = fandom.page(pageid = results[0][1], wiki = wikiName)   
-                    url = page.url
-                    title = page.title
 
-                    #summary doesn't work right, so I'll parse out the suggestions and quotes from "content"
-                    content = re.sub(r'This article is.*\n','', page.content['content'])
-                    content = re.sub(r'For.*\n','', page.content['content'])
-                    #content = re.sub(r'"[^"]*"\n', '', content)
-                    #content = re.sub(rf'{chr(8211)}.*\)\n','',content)
+        if searchTerm == None:
+            r = requests.get(f"""https://{subdomain}.fandom.com/Special:Random""")
+            searchTerm = r.url.strip(f"""https://{subdomain}.fandom.com/wiki/""")
 
-                    #for readability
-                    content = re.sub(r"""(?<!["”])\n""",'\n\n', content)
-
-                    if len(content) > 3000: content = content[:(content[:3000].rfind('.')+1)]
-                    print(len(content))
-            except:
-                await ctx.send("Something went wrong, probably that wiki doesn't exist.")
+        try:
+            results = fandom.search(searchTerm, subdomain)
+            if len(results)==0:
+                await ctx.send(f"""{searchTerm} returned no results from {subdomain}.fandom.com""")
                 return
+            else:
+                page = fandom.page(pageid = results[0][1], wiki = subdomain)   
+                url = page.url
+                title = page.title
 
-            msgEmbed = discord.Embed(title = f"{title}",
-                                    url = f"{url}",
-                                    description = f"{content.strip()}",
-                                    color = discord.Color.blue())
-            msgEmbed.add_field(name = "\u200B", 
-                            value = f"""Via [https://{wikiName}.fandom.com](https://{wikiName}.fandom.com)""")
+                #summary doesn't work right, so I'll parse out the suggestions from "content"
+                content = re.sub(r'This article is.*\n','', page.content['content'])
+                content = re.sub(r'For.*\n','', page.content['content'])
 
-            await ctx.send(embed = msgEmbed)
+                #for readability
+                content = re.sub(r"""(?<!["”])\n""",'\n\n', content)
+
+                if len(content) > 3000: content = content[:(content[:3000].rfind('.')+1)]
+                print(len(content))
+        except:
+            await ctx.send("Something went wrong, probably that wiki doesn't exist.")
+            return
+
+        msgEmbed = discord.Embed(title = f"{title}",
+                                url = f"{url}",
+                                description = f"{content.strip()}",
+                                color = discord.Color.blue())
+        msgEmbed.add_field(name = "\u200B", 
+                        value = f"""Via [https://{subdomain}.fandom.com](https://{subdomain}.fandom.com)""")
+
+        await ctx.send(embed = msgEmbed)
 
     @commands.command(name = 'wiki',
                     description = """Retrieves Wikipedia summary for the provided search term. Omitting search term returns random article summary.""",

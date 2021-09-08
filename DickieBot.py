@@ -18,6 +18,7 @@ load_dotenv()
 TOKEN = os.getenv('DISCORD_TOKEN')
 DATABASE = os.getenv('DATABASE')
 OWNER = os.getenv('OWNER')
+WEATHERAPIKEY = os.getenv('OWMAPIKEY')
 intents = discord.Intents.all()
 
 db = Connection(DATABASE)
@@ -107,6 +108,7 @@ async def on_message(message):
     msgOut = None
     botCommand = True if message.content.startswith('!') else False
     id = None
+    reaction = 0
 
     # Ignore his own messages
     if message.author == bot.user: return
@@ -148,14 +150,14 @@ async def on_message(message):
         msgInParts = msgIn.split('$self')
         msgIn = '$self'.join(e.translate(str.maketrans(dict.fromkeys(string.punctuation))).lower() for e in msgInParts).strip()
 
-        id, msgOut = db.getFact(msgIn,nsfwTag)
+        id, msgOut, reaction = db.getFact(msgIn,nsfwTag)
         if id: print(f'Triggered {id} with {msgIn}')
 
         # If factoid not triggered by incoming message, check for random
         randomNum = random.randint(1,100)
         print(f"Random number {randomNum} <= {db.getFreq(message.guild.id, message.channel.id)} ({message.guild.name}|{message.channel.name})?")
         if id == None and randomNum <= db.getFreq(message.guild.id, message.channel.id): 
-            id, msgOut = db.getFact(None,nsfwTag)
+            id, msgOut, reaction = db.getFact(None,nsfwTag)
             print(f'Triggered {id}')
 
         # Update called metrics for factoid if called
@@ -190,12 +192,15 @@ async def on_message(message):
             msgOut = msgOut.replace('$item', randItem, 1)
                 
     if msgOut != None:
-        await message.channel.send(msgOut)
+        if reaction ==1:
+            await message.add_reaction(msgOut)
+        else:
+            await message.channel.send(msgOut)
 
     await bot.process_commands(message)
 
 bot.add_cog(general.General(bot))
-bot.add_cog(info.Information(bot))
+bot.add_cog(info.Information(bot, WEATHERAPIKEY))
 bot.add_cog(inventory.Inventory(bot, db))
 bot.add_cog(factoids.Factoids(bot, db, OWNER))
 

@@ -298,7 +298,7 @@ class Connection:
             if len(itemList) == 1:
                 id = itemList[0][1]
 
-                c = self.conn.execute("""delete from INVENTORY where ID = ?""",(id,))
+                c = self.conn.execute("""delete from INVENTORY where ID = ?""", (id,))
 
                 self.conn.commit()
 
@@ -367,16 +367,16 @@ class Connection:
 
         return(success, known, id)
 
-    def addFact(self, trigger, response, nsfw, creator, creatorID):
+    def addFact(self, trigger, response, nsfw, creator, creatorID, reaction):
         success = False
         known = False
         id = None
 
         try:
             c = self.conn.execute("""
-            insert into FACTS (MSG, TRIGGER, NSFW, CREATOR, CREATED, CREATOR_ID)
-            values (?,?,?,?,?,?)
-            """, (response, trigger, nsfw, creator, self.getCurrentDateTime(), creatorID))
+            insert into FACTS (MSG, TRIGGER, NSFW, CREATOR, CREATED, CREATOR_ID, REACTION)
+            values (?,?,?,?,?,?,?)
+            """, (response, trigger, nsfw, creator, self.getCurrentDateTime(), creatorID, reaction))
 
             c = self.conn.execute("""select max(ID) from FACTS where MSG = ?""", (response,))
             results = c.fetchall()
@@ -392,7 +392,7 @@ class Connection:
         except sql.IntegrityError:
             success = False
 
-            c = self.conn.execute("""select ID from FACTS where MSG = ? and trigger = ?""", (response, trigger))
+            c = self.conn.execute("""select ID from FACTS where MSG = ? and trigger = ? and reaction = ?""", (response, trigger, reaction))
             results = c.fetchall()
             id = results[0][0]
 
@@ -415,14 +415,14 @@ class Connection:
         try:
             if trigger == None:
                 # Random Factoid
-                sql = f"""select ID, MSG from FACTS 
+                sql = f"""select ID, MSG, REACTION from FACTS 
                     where DELETED = 0 and TRIGGER is null and NSFW in ("""+','.join(str(n) for n in sqlIn)+""") 
                     order by RANDOM() limit 1"""
                 c = self.conn.execute(sql)
             else:
                 # Triggered Factoid
                 sql = f"""
-                    select ID, MSG from FACTS 
+                    select ID, MSG, REACTION from FACTS 
                     where DELETED = 0 and TRIGGER IS NOT NULL and TRIGGER = ? and NSFW in ("""+','.join(str(n) for n in sqlIn)+""") 
                     order by RANDOM() limit 1
                 """
@@ -431,20 +431,20 @@ class Connection:
             results = c.fetchall()
             
             if len(results)==0:
-                id, msgOut = None, None
+                id, msgOut, reaction = None, None, None
             else:
-                id, msgOut = results[0][0], results[0][1]
+                id, msgOut, reaction = results[0][0], results[0][1], results[0][2]
         except Exception as e:
-            (inspect.stack()[0][3])
+            print(inspect.stack()[0][3])
             print(inspect.stack()[1][3])
             print(e)
 
-        return(id,msgOut)
+        return(id, msgOut, reaction)
 
     def factInfo(self, id):
         try:
             c = self.conn.execute("""
-                select ID, TRIGGER, MSG, NSFW, DELETED, CREATOR, CREATED, CNT, LASTCALLED from FACTS where id = ?
+                select ID, TRIGGER, MSG, NSFW, DELETED, CREATOR, CREATED, CNT, LASTCALLED, REACTION from FACTS where id = ?
             """, (id,))
 
             # Convert list of tuples into list
