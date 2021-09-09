@@ -201,8 +201,8 @@ class Information(commands.Cog):
         await message.add_reaction("◀️")
         await message.add_reaction("▶️")
 
-        #def check(reaction, user):
-        #    return user == ctx.author and str(reaction.emoji) in ["◀️", "▶️"]
+        def check(reaction, user):
+            return user == ctx.author and str(reaction.emoji) in ["◀️", "▶️"]
 
         while True:
             try:
