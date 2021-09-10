@@ -146,7 +146,7 @@ class Information(commands.Cog):
 
     @commands.command(name = 'ud', 
                     description = """Retrieves Urban Dictionary definition of search term. Omitting search term returns list of random definitions.
-                    The pages of definitions displayed in chat are navigable only by the caller. The bot response will self-destruct after 5 minutes.""", 
+                    The pages of definitions displayed in chat are navigable only by the caller.""", 
                     brief = 'Get Urban Dictionary definition')
     async def ud(self, ctx, *, searchTerm = None):
         st = '' # Spoiler Tags
@@ -206,7 +206,8 @@ class Information(commands.Cog):
 
         while True:
             try:
-                reaction, user = await self.bot.wait_for("reaction_add", timeout=300, check=check)
+                #reaction, user = await self.bot.wait_for("reaction_add", timeout=300, check=check)
+                reaction, user = await self.bot.wait_for("reaction_add", check=check)
 
                 if str(reaction.emoji) == "▶️" and curPage != pages:
                     curPage += 1

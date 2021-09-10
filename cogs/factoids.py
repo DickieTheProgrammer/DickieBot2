@@ -98,8 +98,7 @@ class Factoids(commands.Cog):
         
     @commands.command(name = 'wtf', 
                     aliases = ['what', 'wth'], 
-                    description = """Retrieves info on specified factoid or last factoid if no id provided.
-                    Message displaying info will self-destruct after 60s of inactivity.""", 
+                    description = """Retrieves info on specified factoid or last factoid if no id provided.""", 
                     brief = 'Retrieve factoid info')
     async def wtf(self, ctx, id: typing.Optional[int] = None):
         fact = self.db.factInfo(id if id != None else self.db.getLastFactID(ctx.guild.id, ctx.channel.id)) if id == None or str(id).isnumeric() else []
@@ -122,10 +121,10 @@ class Factoids(commands.Cog):
 
             def check(reaction, user): return(False)
             
-            try:
+            """try:
                 await self.bot.wait_for("reaction_add",timeout=60, check=check)
             except asyncio.TimeoutError:
-                await message.delete()
+                await message.delete()"""
     
     @commands.command(name='onrand', 
                 aliases = ['onrandnsfw'],
@@ -310,7 +309,7 @@ class Factoids(commands.Cog):
     @commands.command(name = 'hist',
                     aliases = ['gethist'],
                     description = """Returns change log for factoid provided or last triggered factoid if none provided.
-                    The change log pages displayed in chat are navigable only by the caller and will eventually self-destruct after 60s of inactivity.""",
+                    The change log pages displayed in chat are navigable only by the caller.""",
                     brief = 'Get factoid change log')
     async def hist(self, ctx, id: typing.Optional[int] = 0):
         searchID = self.db.getLastFactID(ctx.guild.id, ctx.channel.id) if id == 0 else id
@@ -345,7 +344,8 @@ class Factoids(commands.Cog):
         
         while True:
             try:
-                reaction, user = await self.bot.wait_for("reaction_add", timeout=60, check=check)
+                #reaction, user = await self.bot.wait_for("reaction_add", timeout=60, check=check)
+                reaction, user = await self.bot.wait_for("reaction_add", check=check)
 
                 if str(reaction.emoji) == "▶️" and curPage != pages:
                     curPage += 1
