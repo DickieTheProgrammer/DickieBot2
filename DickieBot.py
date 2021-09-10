@@ -115,7 +115,7 @@ async def on_reaction_add(reaction, user):
             if i not in users: users.append(i.id)
         if r.emoji.startswith('👎'): thumbDown.append(r.emoji)
     
-    if len(users) >= 3 and len(thumbDown) >= 3 : await reaction.message.delete()
+    if len(users) >= 3 and len(thumbDown) >= 3 and reaction.message.author == bot.User: await reaction.message.delete()
 
 @bot.event
 async def on_message(message):
