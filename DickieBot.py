@@ -19,6 +19,7 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 DATABASE = os.getenv('DATABASE')
 OWNER = os.getenv('OWNER')
 WEATHERAPIKEY = os.getenv('OWMAPIKEY')
+SOURCE = os.getenv('SOURCE')
 intents = discord.Intents.all()
 
 db = Connection(DATABASE)
@@ -102,6 +103,19 @@ async def on_member_update(before, after):
             for i in after.guild.text_channels: 
                 print(f"""{i.name} in {after.guild.name} initialized.""")
                 db.setBotRole(after.guild.id, newRole.id, i.id)
+
+@bot.event
+async def on_reaction_add(reaction, user):
+    users = []
+    thumbDown = []
+
+    for r in reaction.message.reactions:
+        reactors = await r.users().flatten()    
+        for i in reactors:
+            if i not in users: users.append(i.id)
+        if r.emoji.startswith('👎'): thumbDown.append(r.emoji)
+    
+    if len(users) >= 3 and len(thumbDown) >= 3 : await reaction.message.delete()
 
 @bot.event
 async def on_message(message):
@@ -199,7 +213,7 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-bot.add_cog(general.General(bot))
+bot.add_cog(general.General(bot, SOURCE))
 bot.add_cog(info.Information(bot, WEATHERAPIKEY))
 bot.add_cog(inventory.Inventory(bot, db))
 bot.add_cog(factoids.Factoids(bot, db, OWNER))

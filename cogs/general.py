@@ -3,8 +3,9 @@ from discord.ext import commands
 
 class General(commands.Cog):
 
-    def __init__(self,bot):
+    def __init__(self, bot, src):
         self.bot = bot
+        self.src = src
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -35,4 +36,4 @@ class General(commands.Cog):
                     description='Returns GitHub source URL.', 
                     brief='Returns source URL')
     async def source(self, ctx):
-        await ctx.send("<https://github.com/DickieTheProgrammer/DickieBot2>")
+        await ctx.send(f"<{self.src}>")
