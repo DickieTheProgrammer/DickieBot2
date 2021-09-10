@@ -12,6 +12,7 @@ import pyowm
 import inspect
 from discord.ext import commands
 
+
 class Information(commands.Cog):
 
     def __init__(self, bot, apiKey):
