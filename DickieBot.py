@@ -19,7 +19,7 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 DATABASE = os.getenv('DATABASE')
 OWNER = os.getenv('OWNER')
 WEATHERAPIKEY = os.getenv('OWMAPIKEY')
-SOURCE = os.getenv('SOURCE')
+SOURCE = os.getenv('SOURCE') 
 intents = discord.Intents.all()
 
 db = Connection(DATABASE)
