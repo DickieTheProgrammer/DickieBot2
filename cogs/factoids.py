@@ -71,7 +71,7 @@ class Factoids(commands.Cog):
                     description = 'Toggles deleted flag on specified factoid or most recent triggered factoid if none specified.',
                     brief = 'or !undelete, toggles deleted/undeleted')
     async def delfact(self, ctx, id = None):
-        if not id.isnumeric() and id != None:
+        if id != None and not id.isnumeric():
             await ctx.send("This is not a valid factoid ID")
             return
 
