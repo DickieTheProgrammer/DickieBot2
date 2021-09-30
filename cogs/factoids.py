@@ -184,7 +184,7 @@ class Factoids(commands.Cog):
         elif not results[0]:
             msgOut = f"Something went wrong modifying fact id {lastID}"
         else:
-            msgOut = f"""Successfully changed fact {id} response from\n{results[5]}\nto\n{results[6]}"""
+            msgOut = f"""Successfully changed fact {lastID} response from\n{results[5]}\nto\n{results[6]}"""
 
         await ctx.send(msgOut)                
 
