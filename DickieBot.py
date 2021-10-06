@@ -191,7 +191,7 @@ async def on_message(message):
         if randCount:
             guildMembers = message.guild.members
             for m in guildMembers: 
-                if m.status != 'online' and m.status != 'idle': guildMembers.remove(m)
+                if (m.status != 'online' and m.status != 'idle') or m.id == botID: guildMembers.remove(m)
 
             randList = random.sample(guildMembers,randCount)
             for i in range(randCount):
