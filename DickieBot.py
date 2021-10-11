@@ -19,7 +19,15 @@ TOKEN = os.getenv('DISCORD_TOKEN')
 DATABASE = os.getenv('DATABASE')
 OWNER = os.getenv('OWNER')
 WEATHERAPIKEY = os.getenv('OWMAPIKEY')
-SOURCE = os.getenv('SOURCE') 
+SOURCE = os.getenv('SOURCE')
+
+#backward-compatible config file options
+try:
+    TRIGGER_ANYWHERE = (int(os.getenv('TRIGGER_ANYWHERE')) == 1)
+    print("TRIGGER_ANYWHERE is", TRIGGER_ANYWHERE)
+except TypeError:
+    TRIGGER_ANYWHERE = False
+
 intents = discord.Intents.all()
 
 db = Connection(DATABASE)
@@ -164,7 +172,7 @@ async def on_message(message):
         msgInParts = msgIn.split('$self')
         msgIn = '$self'.join(e.translate(str.maketrans(dict.fromkeys(string.punctuation))).lower() for e in msgInParts).strip()
 
-        id, msgOut, reaction = db.getFact(msgIn,nsfwTag)
+        id, msgOut, reaction = db.getFact(msgIn,nsfwTag,TRIGGER_ANYWHERE)
         if id: print(f'Triggered {id} with {msgIn}')
 
         # If factoid not triggered by incoming message, check for random

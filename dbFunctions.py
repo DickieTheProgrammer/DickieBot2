@@ -405,7 +405,7 @@ class Connection:
 
         return(success, known, id)
 
-    def getFact(self, trigger, nsfw):
+    def getFact(self, trigger, nsfw, anywhere=False):
         success = False
         msgOut = None
         id = None
@@ -421,9 +421,15 @@ class Connection:
                 c = self.conn.execute(sql)
             else:
                 # Triggered Factoid
+
+                if anywhere:
+                    trigger_cond = "instr(?, TRIGGER)"
+                else:
+                    trigger_cond = "TRIGGER = ?"
+
                 sql = f"""
                     select ID, MSG, REACTION from FACTS 
-                    where DELETED = 0 and TRIGGER IS NOT NULL and TRIGGER = ? and NSFW in ("""+','.join(str(n) for n in sqlIn)+""") 
+                    where DELETED = 0 and TRIGGER IS NOT NULL and """ + trigger_cond + """ and NSFW in ("""+','.join(str(n) for n in sqlIn)+""") 
                     order by RANDOM() limit 1
                 """
                 c = self.conn.execute(sql,(trigger,))
