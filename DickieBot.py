@@ -156,7 +156,7 @@ async def on_message(message):
     if msgIn.startswith('_gives $self') and msgIn.endswith('_'):
         # Given Inventory item
         itemRegex = re.compile(r'^_{1}(?:gives \$self )(.*)_{1}$')
-        item = itemRegex.match(msgIn).group(1)
+        item = itemRegex.match(msgIn).group(1).strip('!.?')
 
         if not db.addToInventory(message.guild.id, message.author.display_name, item, message.author.id):
             msgOut = 'something went wrong'
