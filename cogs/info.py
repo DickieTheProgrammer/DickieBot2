@@ -152,8 +152,6 @@ class Information(commands.Cog):
         st = '' # Spoiler Tags
 
         if ctx.channel.nsfw == False:
-            await ctx.send("This channel is SFW. Urban dictionary... is not.")
-            return
             st = "||"
 
         URL = """https://api.urbandictionary.com/v0/"""
@@ -184,7 +182,7 @@ class Information(commands.Cog):
                 "definition": f"{st}{results[rec-1]['definition']}{st}",
                 "word": f"{st}{results[rec-1]['word']}{st}",
                 "permalink": f"{results[rec-1]['permalink']}",
-                "example": f"{st}{results[rec-1]['example']}{st}"
+                "example": f"{st}{results[rec-1]['example'] if results[rec-1]['example'] else 'No example provided.'}{st}"
             })
 
         msgEmbed = discord.Embed(title = f"{contents[curPage-1]['word']}",
