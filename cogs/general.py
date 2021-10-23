@@ -27,7 +27,9 @@ class General(commands.Cog):
         elif rolls <= 0 or limit <= 0:
             msgOut = 'Positive numbers only'
         else:
-            msgOut = ', '.join(str(random.randint(1, limit)) for r in range(rolls))
+            results = []
+            for r in range(rolls): results.append(random.randint(1, limit))
+            msgOut = ', '.join(str(r) for r in results) + f'\n\nTotal: {sum(results)}'
 
         await ctx.send(msgOut)
 
