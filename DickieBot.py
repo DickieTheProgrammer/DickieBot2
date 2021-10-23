@@ -152,6 +152,8 @@ async def on_message(message):
 
     # Convert notification reference to "$self" variable
     msgIn = parseUtil.mentionToSelfVar(msgIn, db.getBotRole(message.guild.id, message.channel.id), botID)
+    # Discord removes spaces from between successive mentions, so we'll put one back if that's the case
+    msgIn = msgIn.replace('$self<','$self <')
 
     if msgIn.startswith('_gives $self') and msgIn.endswith('_'):
         # Given Inventory item
