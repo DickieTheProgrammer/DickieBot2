@@ -26,6 +26,8 @@ class General(commands.Cog):
             msgOut = 'Max 25 dice'
         elif rolls <= 0 or limit <= 0:
             msgOut = 'Positive numbers only'
+        elif limit > 999999:
+            msgOut = 'Max 999999-sided die'
         else:
             results = []
             for r in range(rolls): results.append(random.randint(1, limit))
