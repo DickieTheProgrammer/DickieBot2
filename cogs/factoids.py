@@ -199,7 +199,7 @@ class Factoids(commands.Cog):
 
         success, changed = self.db.toggleNSFW(lastID, valueNSFW)
 
-        descNSFW = 'NSFW' if ctx.invoked_with == 'nsfw' else 'sfw'
+        descNSFW = 'NSFW' if ctx.invoked_with == 'nsfw' else 'SFW'
 
         if not success:
             msgOut = f"""Something went wrong marking {lastID} as {descNSFW}."""
