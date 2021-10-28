@@ -116,14 +116,29 @@ async def on_member_update(before, after):
 async def on_reaction_add(reaction, user):
     users = []
     thumbDown = []
+    msg = reaction.message
 
-    for r in reaction.message.reactions:
+    # If the message wasn't authored by bot or the emoji is non-standard, return
+    if msg.author != bot.user or type(reaction.emoji) == discord.PartialEmoji: return
+
+    if reaction.emoji in ("🤐","🤫","🔇"):
+        found, duration, started = db.getShutUpDuration(msg.guild.id, msg.channel.id)
+        if found: 
+            await msg.add_reaction(emoji="\U0001f197") #Ok
+        else:
+            success = db.addShutUpRecord(msg.guild.id, msg.channel.id, 5)
+            if success:
+                await msg.add_reaction(emoji="\U0001f197") #Ok
+                await msg.add_reaction(emoji="⌚")
+                await msg.add_reaction(emoji="5️⃣")
+
+    for r in msg.reactions:
         reactors = await r.users().flatten()    
         for i in reactors:
             if i not in users: users.append(i.id)
         if r.emoji.startswith('👎'): thumbDown.append(r.emoji)
     
-    if len(users) >= 3 and len(thumbDown) >= 3 and reaction.message.author == bot.User: await reaction.message.delete()
+    if len(users) >= 3 and len(thumbDown) >= 3: await msg.delete()
 
 @bot.event
 async def on_message(message):
@@ -160,10 +175,15 @@ async def on_message(message):
         itemRegex = re.compile(r'^_{1}(?:gives \$self )(.*)_{1}$')
         item = itemRegex.match(msgIn).group(1).strip('!.?')
 
-        if not db.addToInventory(message.guild.id, message.author.display_name, item, message.author.id):
-            msgOut = 'something went wrong'
+        # If given a url or an item containing an image, reject
+        if re.match(r"^<?https?:\/\/.*>?$", item, re.I) or re.match(r".*<?https?:\/\/.*(.gif|.jpg|.png|.jpeg|.bmp)>?.*$", item, re.I):
+            msgOut = '_throws it on the ground_'
         else:
-            msgOut = '_added %s to his inventory_' % item
+            if not db.addToInventory(message.guild.id, message.author.display_name, item, message.author.id):
+                msgOut = 'something went wrong'
+            else:
+                msgOut = '_added %s to his inventory_' % item
+
     elif not botCommand:
         found, duration, started = db.getShutUpDuration(message.guild.id, message.channel.id)
         if found: return
@@ -201,7 +221,8 @@ async def on_message(message):
         if randCount:
             guildMembers = message.guild.members
             for m in guildMembers: 
-                if (m.status != 'online' and m.status != 'idle') or m.id == botID: guildMembers.remove(m)
+                # Do not include offline or busy users and do not include self
+                if (m.status != 'online' and m.status != 'idle') or m.name == botName: guildMembers.remove(m)
 
             randList = random.sample(guildMembers,randCount)
             for i in range(randCount):

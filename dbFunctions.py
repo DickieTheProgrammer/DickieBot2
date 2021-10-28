@@ -618,12 +618,13 @@ class Connection:
             c = self.conn.execute("""select ID from FACTS where ID = ? and NSFW = ?""", (id, nsfw))
             results = c.fetchall()
 
-            if len(results) == 1:
+            if len(results) == 0:
+                
+                changed = True
 
                 c = self.conn.execute("""update FACTS set NSFW = ? where ID = ?""", (nsfw, id))
                 self.conn.commit()
 
-                changed = True
                 success = True
 
         except Exception as e:
