@@ -51,7 +51,7 @@ async def on_ready():
     for gld in bot.guilds: 
         # Sometimes the bot joins a server and automatically gets a role with the same name as him
         # If this happens, capture it and save the bot role
-        role = utils.get(gld.roles,name=botName)
+        role = utils.get(gld.roles, name = botName)
         roleID = 0 if role == None else role.id
         for i in gld.text_channels: db.initGuild(gld.id, roleID, i.id)
 
@@ -63,7 +63,7 @@ async def on_ready():
 async def on_guild_join(guild):
     # Sometimes the bot joins a server and automatically gets a role with the same name as him
     # If this happens, capture it and save the bot role
-    role = utils.get(guild.roles,name=botName)
+    role = utils.get(guild.roles, name = botName)
     roleID = 0 if role == None else role.id
     for i in guild.text_channels: 
         if db.initGuild(guild.id, roleID, i.id):
@@ -77,7 +77,7 @@ async def on_guild_channel_create(channel):
     if type(channel) != discord.TextChannel:
             return
 
-    role = utils.get(channel.guild.roles,name=botName)
+    role = utils.get(channel.guild.roles, name = botName)
     roleID = 0 if role == None else role.id
     if db.initGuild(channel.guild.id, roleID, channel.id):
         print(f"""{channel.name} in {channel.guild.name} initialized.""")
@@ -147,8 +147,8 @@ async def on_message(message):
     id = None
     reaction = 0
 
-    # Ignore his own messages
-    if message.author == bot.user: return
+    # Ignore bots (should include himself)
+    if message.author.bot: return
 
     # Reject DMs. May do something with this later.
     if isinstance(message.channel, discord.channel.DMChannel): 
@@ -194,14 +194,14 @@ async def on_message(message):
         msgInParts = msgIn.split('$self')
         msgIn = '$self'.join(e.translate(str.maketrans(dict.fromkeys(string.punctuation))).lower() for e in msgInParts).strip()
 
-        id, msgOut, reaction = db.getFact(msgIn,nsfwTag,TRIGGER_ANYWHERE)
+        id, msgOut, reaction = db.getFact(msgIn, nsfwTag, TRIGGER_ANYWHERE)
         if id: print(f'Triggered {id} with {msgIn}')
 
         # If factoid not triggered by incoming message, check for random
         randomNum = random.randint(1,100)
         print(f"Random number {randomNum} <= {db.getFreq(message.guild.id, message.channel.id)} ({message.guild.name}|{message.channel.name})?")
         if id == None and randomNum <= db.getFreq(message.guild.id, message.channel.id): 
-            id, msgOut, reaction = db.getFact(None,nsfwTag)
+            id, msgOut, reaction = db.getFact(None, nsfwTag)
             print(f'Triggered {id}')
 
         # Update called metrics for factoid if called
@@ -222,7 +222,7 @@ async def on_message(message):
             guildMembers = message.guild.members
             for m in guildMembers: 
                 # Do not include offline or busy users and do not include self
-                if (m.status != 'online' and m.status != 'idle') or m.name == botName: guildMembers.remove(m)
+                if (m.status != 'online' and m.status != 'idle') or m.id == botID: guildMembers.remove(m)
 
             randList = random.sample(guildMembers,randCount)
             for i in range(randCount):
@@ -244,9 +244,12 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-bot.add_cog(general.General(bot, SOURCE))
-bot.add_cog(info.Information(bot, WEATHERAPIKEY))
-bot.add_cog(inventory.Inventory(bot, db))
-bot.add_cog(factoids.Factoids(bot, db, OWNER))
+def main():
+    bot.add_cog(general.General(bot, SOURCE))
+    bot.add_cog(info.Information(bot, WEATHERAPIKEY))
+    bot.add_cog(inventory.Inventory(bot, db))
+    bot.add_cog(factoids.Factoids(bot, db, OWNER))
+    bot.run(TOKEN)
 
-bot.run(TOKEN)
+if __name__ == '__main__':
+    main()

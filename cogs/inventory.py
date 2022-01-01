@@ -26,9 +26,9 @@ class Inventory(commands.Cog):
         print("Inventory cog loaded")
 
     @commands.command(name = 'inv', 
-                    aliases=['inventory','stuff','items'], 
-                    description="Returns current guild's inventory.", 
-                    brief='Displays inventory')
+                    aliases = ['inventory','stuff','items'], 
+                    description = "Returns current guild's inventory.", 
+                    brief = 'Displays inventory')
     # add @commands.cooldown(2, 20, commands.BucketType.user) here?
     async def inv(self, ctx):
         itemList = self.db.getInventory(ctx.guild.id)
@@ -41,10 +41,10 @@ class Inventory(commands.Cog):
         listLen = len(deTupledList)
 
         # Randomly order list to give "first in" items some visibility
-        deTupledList = random.sample(deTupledList,listLen)
+        deTupledList = random.sample(deTupledList, listLen)
 
         if listLen == 0:
-            msgOut = random.sample(self.nothingList,1)[0]
+            msgOut = random.sample(self.nothingList, 1)[0]
         else:
             msgOut = "I have:\n\t○ " + "\n\t○ ".join(deTupledList[0:5])
 
@@ -60,7 +60,7 @@ class Inventory(commands.Cog):
                     description = 'Tells who gave me an item', 
                     brief = 'Who gave me a thing?')
     async def whogave(self, ctx, *, item: str):
-        donors = self.db.getItemDonor(ctx.guild.id,item)
+        donors = self.db.getItemDonor(ctx.guild.id, item)
         resolvedDonors = []
 
         if donors == None:

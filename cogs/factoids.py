@@ -52,7 +52,7 @@ class Factoids(commands.Cog):
                 self.db.updateFreq(ctx.guild.id, frequency, ctx.channel.id)
                 msgOut = f"""You're the boss. Frequency for {ctx.channel.name} set to {frequency}%"""
             else:
-                msgOut = random.sample(self.noList,1)[0]
+                msgOut = random.sample(self.noList, 1)[0]
         except Exception as e:
             msgOut = 'Something went wrong setting random frequency'
 
@@ -67,7 +67,7 @@ class Factoids(commands.Cog):
         await ctx.send(msgOut)
 
     @commands.command(name = 'delete',
-                    aliases = ['del','undel','undelete','baleet','unbaleet'],
+                    aliases = ['del', 'undel', 'undelete', 'baleet', 'unbaleet'],
                     description = 'Toggles deleted flag on specified factoid or most recent triggered factoid if none specified.',
                     brief = 'or !undelete, toggles deleted/undeleted')
     async def delfact(self, ctx, id = None):
@@ -110,10 +110,10 @@ class Factoids(commands.Cog):
             msgOut = """¯\_(ツ)_/¯"""
             await ctx.send(msgOut)
         else: 
-            st = '||' if fact[3]==1 and not ctx.channel.is_nsfw else ''
+            st = '||' if fact[3] == 1 and not ctx.channel.is_nsfw else ''
             
-            msgEmbed = discord.Embed(title=f"{fact[0]}{' (Reaction)' if fact[9]==1 else ''}",
-                                    description = f"""Trigger: {st}{fact[1] if fact[1] != None else "*None*"}{st}\nResponse: {st}{fact[2]}{st}\nNSFW: {str(fact[3]==1)}\nDeleted: {str(fact[4]==1)}\nCreator: {fact[5]}\nCreated: {fact[6]}\nTimes Triggered: {fact[7]}\nLast Triggered: {fact[8]}""",
+            msgEmbed = discord.Embed(title=f"{fact[0]}{' (Reaction)' if fact[9] == 1 else ''}",
+                                    description = parseUtil.escapeFormatting(f"""Trigger: {st}{fact[1] if fact[1] != None else "*None*"}{st}\nResponse: {st}{fact[2]}{st}\nNSFW: {str(fact[3]==1)}\nDeleted: {str(fact[4]==1)}\nCreator: {fact[5]}\nCreated: {fact[6]}\nTimes Triggered: {fact[7]}\nLast Triggered: {fact[8]}"""),
                                     color = discord.Color.blue())
             msgEmbed.set_footer(text=f"""{'Spoiler tags for SFW channel' if st else ''}""")
             
@@ -344,7 +344,6 @@ class Factoids(commands.Cog):
         
         while True:
             try:
-                #reaction, user = await self.bot.wait_for("reaction_add", timeout=60, check=check)
                 reaction, user = await self.bot.wait_for("reaction_add", check=check)
 
                 if str(reaction.emoji) == "▶️" and curPage != pages:
@@ -354,6 +353,7 @@ class Factoids(commands.Cog):
                                             color = discord.Color.blue())
 
                     msgEmbed.set_footer(text=f"""Page {curPage} of {pages}. {'Spoiler tags for SFW channel' if st else ''}""")
+                    
                     await message.edit(embed = msgEmbed)
                     await message.remove_reaction(reaction, user)
 
@@ -364,6 +364,7 @@ class Factoids(commands.Cog):
                                             color = discord.Color.blue())
 
                     msgEmbed.set_footer(text=f"""Page {curPage} of {pages}. {'Spoiler tags for SFW channel' if st else ''}""")
+
                     await message.edit(embed = msgEmbed)
                     await message.remove_reaction(reaction, user)
 
@@ -375,11 +376,11 @@ class Factoids(commands.Cog):
                 await message.delete()
                 break
 
-    @commands.command(name='shutup',
-                    aliases=['shaddup', 'stfu'],
+    @commands.command(name = 'shutup',
+                    aliases = ['shaddup', 'stfu'],
                     description = """Silences triggering of factoids for the duration provided, or 5 minutes if no duration provided. Max duration 30 min.""",
                     brief = """Prevents triggering of factoids""")
-    async def shutup(self, ctx, shutUpDuration: typing.Optional[int]  = 5):
+    async def shutup(self, ctx, shutUpDuration: typing.Optional[int] = 5):
         found, duration, started = self.db.getShutUpDuration(ctx.guild.id, ctx.channel.id)
 
         if found:
@@ -388,7 +389,7 @@ class Factoids(commands.Cog):
             if timeLeft < 0:
                 msgOut = """Strange. I should be done with"""
             elif timeLeft < 10:
-                msgOut =f"""Almost done with"""
+                msgOut = f"""Almost done with"""
             elif timeLeft < 30:
                 msgOut = """I've got less than 30 seconds of"""
             elif timeLeft < 60:

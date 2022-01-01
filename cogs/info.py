@@ -31,7 +31,7 @@ class Information(commands.Cog):
         redirectSubdomain = None
         r = requests.get(f'http://{subdomain}.fandom.com')
         if r.status_code == 200:
-            redirectSubdomain = re.search(r'^https://(.*)\.fandom.*$',r.url).group(1) 
+            redirectSubdomain = re.search(r'^https://(.*)\.fandom.*$', r.url).group(1) 
 
         return(redirectSubdomain)
 
@@ -42,7 +42,7 @@ class Information(commands.Cog):
     @commands.command(name='weather',
                     description = """Get the weather at a given location, default 'Huntsville, AL'""",
                     brief = 'Get the weather at a location')
-    async def weather(self, ctx, *, location='Huntsville, AL, US'):
+    async def weather(self, ctx, *, location = 'Huntsville, AL, US'):
         if not self.owm:
             await ctx.send("OWM Weather Not Connected")
             return
@@ -70,7 +70,7 @@ class Information(commands.Cog):
                         value = f"""Via [https://openweathermap.org/](https://openweathermap.org/)""")
         await ctx.send(embed = msgEmbed)
 
-    @commands.command(name='fandom',
+    @commands.command(name = 'fandom',
                     description = """Retrieves Fandom summary for the provided search term in the provided wiki, returning the best approximation of the article summary as can be derived from the subpar API.
                     The wikiName arg refers to the fandom site's subdomain, such as "memory-alpha" (memory-alpha.fandom.com) or "minecraft" (minecraft.fandom.com)""",
                     brief = 'Returns Fandom wiki article')
@@ -122,7 +122,7 @@ class Information(commands.Cog):
                     brief = 'Get Wikipedia article summary')
     async def wiki(self, ctx, *, searchTerm = None):
         if searchTerm == None:
-            page = wikipedia.page(wikipedia.random(pages=1))
+            page = wikipedia.page(wikipedia.random(pages = 1))
         else:
             try:
                 page = wikipedia.page(searchTerm)
@@ -192,7 +192,7 @@ class Information(commands.Cog):
         msgEmbed.add_field(name = "Example",
                         value = parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['example']}"),
                         inline = False)
-        msgEmbed.set_footer(text=f"""Page {curPage} of {pages}. {'Spoiler tags for SFW channel' if st else ''}""")
+        msgEmbed.set_footer(text = f"""Page {curPage} of {pages}. {'Spoiler tags for SFW channel' if st else ''}""")
         
         message = await ctx.send(embed = msgEmbed)
 
@@ -204,7 +204,6 @@ class Information(commands.Cog):
 
         while True:
             try:
-                #reaction, user = await self.bot.wait_for("reaction_add", timeout=300, check=check)
                 reaction, user = await self.bot.wait_for("reaction_add", check=check)
 
                 if str(reaction.emoji) == "▶️" and curPage != pages:
