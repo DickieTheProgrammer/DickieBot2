@@ -253,7 +253,7 @@ class Connection:
         
         try:
             c = self.conn.execute("""
-            INSERT INTO INVENTORY (GUILD,ITEM,USER,DATEADDED,USER_ID)
+            INSERT INTO INVENTORY (GUILD, ITEM, USER, DATEADDED, USER_ID)
             values(?,?,?,?,?)
             """, (guild, item, user, self.getCurrentDateTime(), userID))
             self.conn.commit()
@@ -405,7 +405,7 @@ class Connection:
 
         return(success, known, id)
 
-    def getFact(self, trigger, nsfw, anywhere=False):
+    def getFact(self, trigger, nsfw, anywhere = False):
         success = False
         msgOut = None
         id = None
@@ -432,11 +432,11 @@ class Connection:
                     where DELETED = 0 and TRIGGER IS NOT NULL and """ + trigger_cond + """ and NSFW in ("""+','.join(str(n) for n in sqlIn)+""") 
                     order by RANDOM() limit 1
                 """
-                c = self.conn.execute(sql,(trigger,))
+                c = self.conn.execute(sql, (trigger,))
 
             results = c.fetchall()
             
-            if len(results)==0:
+            if len(results) == 0:
                 id, msgOut, reaction = None, None, None
             else:
                 id, msgOut, reaction = results[0][0], results[0][1], results[0][2]

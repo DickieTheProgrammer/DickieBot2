@@ -36,8 +36,8 @@ class General(commands.Cog):
         await ctx.send(msgOut)
 
     @commands.command(name = 'src', 
-                    aliases=['source','sauce'], 
-                    description='Returns GitHub source URL.', 
-                    brief='Returns source URL')
+                    aliases = ['source','sauce'], 
+                    description = 'Returns GitHub source URL.', 
+                    brief = 'Returns source URL')
     async def source(self, ctx):
         await ctx.send(f"<{self.src}>")

@@ -22,7 +22,15 @@ def convertEmote(msgIn):
 
     return(msgOut)
 
-def mentionToSelfVar(msgIn,botRole, botID):
+def escapeFormatting(msgIn):
+    #Escape things like :
+    # bold (*), italics (_), spoilers (|), strikethrough (~), quote (>), and code (`)
+    msgOut = msgIn.replace('_','\_').replace('*','\*').replace('|','\|').replace('~','\~').replace('>','\>').replace('`','\`')
+
+    return(msgOut)
+
+
+def mentionToSelfVar(msgIn, botRole, botID):
     msgOut = msgIn
 
     # Nick ping
