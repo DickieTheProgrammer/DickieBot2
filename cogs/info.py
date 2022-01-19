@@ -14,7 +14,6 @@ from discord.ext import commands
 
 
 class Information(commands.Cog):
-
     def __init__(self, bot, apiKey):
         self.bot = bot
 
@@ -29,20 +28,22 @@ class Information(commands.Cog):
 
     def fandomRedirect(self, subdomain):
         redirectSubdomain = None
-        r = requests.get(f'http://{subdomain}.fandom.com')
+        r = requests.get(f"http://{subdomain}.fandom.com")
         if r.status_code == 200:
-            redirectSubdomain = re.search(r'^https://(.*)\.fandom.*$', r.url).group(1) 
+            redirectSubdomain = re.search(r"^https://(.*)\.fandom.*$", r.url).group(1)
 
-        return(redirectSubdomain)
+        return redirectSubdomain
 
     @commands.Cog.listener()
     async def on_ready(self):
         print("Information cog loaded")
 
-    @commands.command(name='weather',
-                    description = """Get the weather at a given location, default 'Huntsville, AL'""",
-                    brief = 'Get the weather at a location')
-    async def weather(self, ctx, *, location = 'Huntsville, AL, US'):
+    @commands.command(
+        name="weather",
+        description="""Get the weather at a given location, default 'Huntsville, AL'""",
+        brief="Get the weather at a location",
+    )
+    async def weather(self, ctx, *, location="Huntsville, AL, US"):
         if not self.owm:
             await ctx.send("OWM Weather Not Connected")
             return
@@ -52,29 +53,39 @@ class Information(commands.Cog):
             try:
                 observation = mgr.weather_at_place(location)
             except:
-                observation = mgr.weather_at_place(location+', US')
+                observation = mgr.weather_at_place(location + ", US")
             weather = observation.weather
-            resolvedLoc = observation.to_dict()['location']['name'] + ', ' + observation.to_dict()['location']['country']
+            resolvedLoc = (
+                observation.to_dict()["location"]["name"]
+                + ", "
+                + observation.to_dict()["location"]["country"]
+            )
             status = weather.detailed_status
-            td = weather.temperature('fahrenheit')
+            td = weather.temperature("fahrenheit")
             temp = f"""{td['temp']}, feels like {td['feels_like']}"""
             humidity = f"""{weather.humidity}%"""
         except:
-            await ctx.send(f'Unable to retrieve weather information from {location}')
+            await ctx.send(f"Unable to retrieve weather information from {location}")
             return
 
-        msgEmbed = discord.Embed(title = f"Current weather for {resolvedLoc}",
-                                description = f"Status: {status}\nTemp: {temp}\nHumidity: {humidity}",
-                                color = discord.Color.blue())  
-        msgEmbed.add_field(name = "\u200B", 
-                        value = f"""Via [https://openweathermap.org/](https://openweathermap.org/)""")
-        await ctx.send(embed = msgEmbed)
+        msgEmbed = discord.Embed(
+            title=f"Current weather for {resolvedLoc}",
+            description=f"Status: {status}\nTemp: {temp}\nHumidity: {humidity}",
+            color=discord.Color.blue(),
+        )
+        msgEmbed.add_field(
+            name="\u200B",
+            value=f"""Via [https://openweathermap.org/](https://openweathermap.org/)""",
+        )
+        await ctx.send(embed=msgEmbed)
 
-    @commands.command(name = 'fandom',
-                    description = """Retrieves Fandom summary for the provided search term in the provided wiki, returning the best approximation of the article summary as can be derived from the subpar API.
+    @commands.command(
+        name="fandom",
+        description="""Retrieves Fandom summary for the provided search term in the provided wiki, returning the best approximation of the article summary as can be derived from the subpar API.
                     The wikiName arg refers to the fandom site's subdomain, such as "memory-alpha" (memory-alpha.fandom.com) or "minecraft" (minecraft.fandom.com)""",
-                    brief = 'Returns Fandom wiki article')
-    async def fandom(self, ctx, wikiName, *, searchTerm = None):
+        brief="Returns Fandom wiki article",
+    )
+    async def fandom(self, ctx, wikiName, *, searchTerm=None):
         subdomain = self.fandomRedirect(wikiName)
 
         if subdomain == None:
@@ -87,42 +98,51 @@ class Information(commands.Cog):
 
         try:
             results = fandom.search(searchTerm, subdomain)
-            if len(results)==0:
-                await ctx.send(f"""{searchTerm} returned no results from {subdomain}.fandom.com""")
+            if len(results) == 0:
+                await ctx.send(
+                    f"""{searchTerm} returned no results from {subdomain}.fandom.com"""
+                )
                 return
             else:
-                page = fandom.page(pageid = results[0][1], wiki = subdomain)   
+                page = fandom.page(pageid=results[0][1], wiki=subdomain)
                 url = page.url
                 title = page.title
 
-                #summary doesn't work right, so I'll parse out the suggestions from "content"
-                content = re.sub(r'This article is.*\n','', page.content['content'])
-                content = re.sub(r'For.*\n','', page.content['content'])
+                # summary doesn't work right, so I'll parse out the suggestions from "content"
+                content = re.sub(r"This article is.*\n", "", page.content["content"])
+                content = re.sub(r"For.*\n", "", page.content["content"])
 
-                #for readability
-                content = re.sub(r"""(?<!["”])\n""",'\n\n', content)
+                # for readability
+                content = re.sub(r"""(?<!["”])\n""", "\n\n", content)
 
-                if len(content) > 3000: content = content[:(content[:3000].rfind('.')+1)]
+                if len(content) > 3000:
+                    content = content[: (content[:3000].rfind(".") + 1)]
                 print(len(content))
         except:
             await ctx.send("Something went wrong, probably that wiki doesn't exist.")
             return
 
-        msgEmbed = discord.Embed(title = f"{title}",
-                                url = f"{url}",
-                                description = f"{content.strip()}",
-                                color = discord.Color.blue())
-        msgEmbed.add_field(name = "\u200B", 
-                        value = f"""Via [https://{subdomain}.fandom.com](https://{subdomain}.fandom.com)""")
+        msgEmbed = discord.Embed(
+            title=f"{title}",
+            url=f"{url}",
+            description=f"{content.strip()}",
+            color=discord.Color.blue(),
+        )
+        msgEmbed.add_field(
+            name="\u200B",
+            value=f"""Via [https://{subdomain}.fandom.com](https://{subdomain}.fandom.com)""",
+        )
 
-        await ctx.send(embed = msgEmbed)
+        await ctx.send(embed=msgEmbed)
 
-    @commands.command(name = 'wiki',
-                    description = """Retrieves Wikipedia summary for the provided search term. Omitting search term returns random article summary.""",
-                    brief = 'Get Wikipedia article summary')
-    async def wiki(self, ctx, *, searchTerm = None):
+    @commands.command(
+        name="wiki",
+        description="""Retrieves Wikipedia summary for the provided search term. Omitting search term returns random article summary.""",
+        brief="Get Wikipedia article summary",
+    )
+    async def wiki(self, ctx, *, searchTerm=None):
         if searchTerm == None:
-            page = wikipedia.page(wikipedia.random(pages = 1))
+            page = wikipedia.page(wikipedia.random(pages=1))
         else:
             try:
                 page = wikipedia.page(searchTerm)
@@ -135,21 +155,25 @@ class Information(commands.Cog):
                 print(inspect.stack()[1][3])
                 print(e)
                 return
-        
-        content = re.sub(r'\n','\n\n', page.summary).strip()
-        msgEmbed = discord.Embed(title = f"{page.title}",
-                            url = f"{page.url}",
-                            description = f"{content}",
-                            color = discord.Color.blue())
 
-        await ctx.send(embed = msgEmbed)
+        content = re.sub(r"\n", "\n\n", page.summary).strip()
+        msgEmbed = discord.Embed(
+            title=f"{page.title}",
+            url=f"{page.url}",
+            description=f"{content}",
+            color=discord.Color.blue(),
+        )
 
-    @commands.command(name = 'ud', 
-                    description = """Retrieves Urban Dictionary definition of search term. Omitting search term returns list of random definitions.
-                    The pages of definitions displayed in chat are navigable only by the caller.""", 
-                    brief = 'Get Urban Dictionary definition')
-    async def ud(self, ctx, *, searchTerm = None):
-        st = '' # Spoiler Tags
+        await ctx.send(embed=msgEmbed)
+
+    @commands.command(
+        name="ud",
+        description="""Retrieves Urban Dictionary definition of search term. Omitting search term returns list of random definitions.
+                    The pages of definitions displayed in chat are navigable only by the caller.""",
+        brief="Get Urban Dictionary definition",
+    )
+    async def ud(self, ctx, *, searchTerm=None):
+        st = ""  # Spoiler Tags
 
         if ctx.channel.nsfw == False:
             st = "||"
@@ -165,11 +189,11 @@ class Information(commands.Cog):
         response = requests.get(URL)
 
         if response.status_code != 200:
-            await ctx.send(f'Response code {response.status_code} for <{URL}>')
+            await ctx.send(f"Response code {response.status_code} for <{URL}>")
             return
-        
+
         if response.content == """{"error":404}""":
-            await ctx.send(f'Response code 404 for <{URL}>')
+            await ctx.send(f"Response code 404 for <{URL}>")
             return
 
         results = json.loads(response.content)["list"]
@@ -178,23 +202,33 @@ class Information(commands.Cog):
         curPage = 1
 
         for rec in range(pages):
-            contents.append({
-                "definition": f"{st}{results[rec-1]['definition']}{st}",
-                "word": f"{st}{results[rec-1]['word']}{st}",
-                "permalink": f"{results[rec-1]['permalink']}",
-                "example": f"{st}{results[rec-1]['example'] if results[rec-1]['example'] else 'No example provided.'}{st}"
-            })
+            contents.append(
+                {
+                    "definition": f"{st}{results[rec-1]['definition']}{st}",
+                    "word": f"{st}{results[rec-1]['word']}{st}",
+                    "permalink": f"{results[rec-1]['permalink']}",
+                    "example": f"{st}{results[rec-1]['example'] if results[rec-1]['example'] else 'No example provided.'}{st}",
+                }
+            )
 
-        msgEmbed = discord.Embed(title = f"{contents[curPage-1]['word']}",
-                            url = f"{contents[curPage-1]['permalink']}",
-                            description = parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['definition']}"),
-                            color = discord.Color.blue())
-        msgEmbed.add_field(name = "Example",
-                        value = parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['example']}"),
-                        inline = False)
-        msgEmbed.set_footer(text = f"""Page {curPage} of {pages}. {'Spoiler tags for SFW channel' if st else ''}""")
-        
-        message = await ctx.send(embed = msgEmbed)
+        msgEmbed = discord.Embed(
+            title=f"{contents[curPage-1]['word']}",
+            url=f"{contents[curPage-1]['permalink']}",
+            description=parseUtil.convertLinkMarkdown(
+                f"{contents[curPage-1]['definition']}"
+            ),
+            color=discord.Color.blue(),
+        )
+        msgEmbed.add_field(
+            name="Example",
+            value=parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['example']}"),
+            inline=False,
+        )
+        msgEmbed.set_footer(
+            text=f"""Page {curPage} of {pages}. {'Spoiler tags for SFW channel' if st else ''}"""
+        )
+
+        message = await ctx.send(embed=msgEmbed)
 
         await message.add_reaction("◀️")
         await message.add_reaction("▶️")
@@ -209,31 +243,51 @@ class Information(commands.Cog):
                 if str(reaction.emoji) == "▶️" and curPage != pages:
                     curPage += 1
 
-                    msgEmbed = discord.Embed(title = f"{contents[curPage-1]['word']}",
-                            url = f"{contents[curPage-1]['permalink']}",
-                            description = parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['definition']}"),
-                            color = discord.Color.blue())
-                    msgEmbed.add_field(name = "Example",
-                                    value = parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['example']}"),
-                                    inline = False)  
-                    msgEmbed.set_footer(text=f"""Page {curPage} of {pages}. {'Spoiler tags for SFW channel' if st else ''}""")
+                    msgEmbed = discord.Embed(
+                        title=f"{contents[curPage-1]['word']}",
+                        url=f"{contents[curPage-1]['permalink']}",
+                        description=parseUtil.convertLinkMarkdown(
+                            f"{contents[curPage-1]['definition']}"
+                        ),
+                        color=discord.Color.blue(),
+                    )
+                    msgEmbed.add_field(
+                        name="Example",
+                        value=parseUtil.convertLinkMarkdown(
+                            f"{contents[curPage-1]['example']}"
+                        ),
+                        inline=False,
+                    )
+                    msgEmbed.set_footer(
+                        text=f"""Page {curPage} of {pages}. {'Spoiler tags for SFW channel' if st else ''}"""
+                    )
 
-                    await message.edit(embed = msgEmbed)
+                    await message.edit(embed=msgEmbed)
                     await message.remove_reaction(reaction, user)
 
                 elif str(reaction.emoji) == "◀️" and curPage > 1:
                     curPage -= 1
 
-                    msgEmbed = discord.Embed(title = f"{contents[curPage-1]['word']}",
-                            url = f"{contents[curPage-1]['permalink']}",
-                            description = parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['definition']}"),
-                            color = discord.Color.blue())
-                    msgEmbed.add_field(name = "Example",
-                                    value = parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['example']}"),
-                                    inline = False)     
-                    msgEmbed.set_footer(text=f"""Page {curPage} of {pages}. {'Spoiler tags for SFW channel' if st else ''}""")
-                                                    
-                    await message.edit(embed = msgEmbed)
+                    msgEmbed = discord.Embed(
+                        title=f"{contents[curPage-1]['word']}",
+                        url=f"{contents[curPage-1]['permalink']}",
+                        description=parseUtil.convertLinkMarkdown(
+                            f"{contents[curPage-1]['definition']}"
+                        ),
+                        color=discord.Color.blue(),
+                    )
+                    msgEmbed.add_field(
+                        name="Example",
+                        value=parseUtil.convertLinkMarkdown(
+                            f"{contents[curPage-1]['example']}"
+                        ),
+                        inline=False,
+                    )
+                    msgEmbed.set_footer(
+                        text=f"""Page {curPage} of {pages}. {'Spoiler tags for SFW channel' if st else ''}"""
+                    )
+
+                    await message.edit(embed=msgEmbed)
                     await message.remove_reaction(reaction, user)
 
                 else:

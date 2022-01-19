@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#DickieBot: The Impressionable Discord Bot
+# DickieBot: The Impressionable Discord Bot
 
 import os
 import discord
@@ -15,15 +15,15 @@ from dotenv import load_dotenv
 from discord.ext import commands
 
 load_dotenv()
-TOKEN = os.getenv('DISCORD_TOKEN')
-DATABASE = os.getenv('DATABASE')
-OWNER = os.getenv('OWNER')
-WEATHERAPIKEY = os.getenv('OWMAPIKEY')
-SOURCE = os.getenv('SOURCE')
+TOKEN = os.getenv("DISCORD_TOKEN")
+DATABASE = os.getenv("DATABASE")
+OWNER = os.getenv("OWNER")
+WEATHERAPIKEY = os.getenv("OWMAPIKEY")
+SOURCE = os.getenv("SOURCE")
 
-#backward-compatible config file options
+# backward-compatible config file options
 try:
-    TRIGGER_ANYWHERE = (int(os.getenv('TRIGGER_ANYWHERE')) == 1)
+    TRIGGER_ANYWHERE = int(os.getenv("TRIGGER_ANYWHERE")) == 1
     print("TRIGGER_ANYWHERE is", TRIGGER_ANYWHERE)
 except TypeError:
     TRIGGER_ANYWHERE = False
@@ -34,11 +34,14 @@ db = Connection(DATABASE)
 
 botID = None
 botName = None
-help_command = commands.DefaultHelpCommand(no_category = 'Other')
-bot = commands.Bot(command_prefix = '!', 
-                description = 'DickieBot: The impressionable Discord bot!', 
-                help_command = help_command, 
-                intents = intents)
+help_command = commands.DefaultHelpCommand(no_category="Other")
+bot = commands.Bot(
+    command_prefix="!",
+    description="DickieBot: The impressionable Discord bot!",
+    help_command=help_command,
+    intents=intents,
+)
+
 
 @bot.event
 async def on_ready():
@@ -48,49 +51,54 @@ async def on_ready():
     global botName
     botName = bot.user.name
 
-    for gld in bot.guilds: 
+    for gld in bot.guilds:
         # Sometimes the bot joins a server and automatically gets a role with the same name as him
         # If this happens, capture it and save the bot role
-        role = utils.get(gld.roles, name = botName)
+        role = utils.get(gld.roles, name=botName)
         roleID = 0 if role == None else role.id
-        for i in gld.text_channels: db.initGuild(gld.id, roleID, i.id)
+        for i in gld.text_channels:
+            db.initGuild(gld.id, roleID, i.id)
 
-    print(f'{bot.user.name} has connected to Discord!')
-    print(f'{bot.user} is user')
-    print(f'{botID} is ID')
+    print(f"{bot.user.name} has connected to Discord!")
+    print(f"{bot.user} is user")
+    print(f"{botID} is ID")
+
 
 @bot.event
 async def on_guild_join(guild):
     # Sometimes the bot joins a server and automatically gets a role with the same name as him
     # If this happens, capture it and save the bot role
-    role = utils.get(guild.roles, name = botName)
+    role = utils.get(guild.roles, name=botName)
     roleID = 0 if role == None else role.id
-    for i in guild.text_channels: 
+    for i in guild.text_channels:
         if db.initGuild(guild.id, roleID, i.id):
             print(f"""{i.name} in {guild.name} initialized.""")
         else:
             print(f"""{i.name} in {guild.name} was not initialized.""")
 
+
 @bot.event
 async def on_guild_channel_create(channel):
     # If new text channel created, intialize.
     if type(channel) != discord.TextChannel:
-            return
+        return
 
-    role = utils.get(channel.guild.roles, name = botName)
+    role = utils.get(channel.guild.roles, name=botName)
     roleID = 0 if role == None else role.id
     if db.initGuild(channel.guild.id, roleID, channel.id):
         print(f"""{channel.name} in {channel.guild.name} initialized.""")
     else:
         print(f"""{channel.name} in {channel.guild.name} was not initialized.""")
 
+
 @bot.event
 async def on_guild_channel_delete(channel):
     # If channel removed, purge the record holding its state
     if db.deleteGuildState(channel.guild.id, channel.id):
         print(f"""{channel.name} in {channel.guild.name} deleted.""")
-    else: 
+    else:
         print(f"""{channel.name} in {channel.guild.name} was not deleted.""")
+
 
 @bot.event
 async def on_guild_remove(guild):
@@ -100,6 +108,7 @@ async def on_guild_remove(guild):
     else:
         print(f"""{guild.name} was not deleted.""")
 
+
 @bot.event
 async def on_member_update(before, after):
     # Sometimes the bot joins a server and automatically gets a role with the same name as him
@@ -108,9 +117,10 @@ async def on_member_update(before, after):
         newRole = next(role for role in after.roles if role not in before.roles)
 
         if newRole.name == botName:
-            for i in after.guild.text_channels: 
+            for i in after.guild.text_channels:
                 print(f"""{i.name} in {after.guild.name} initialized.""")
                 db.setBotRole(after.guild.id, newRole.id, i.id)
+
 
 @bot.event
 async def on_reaction_add(reaction, user):
@@ -119,39 +129,45 @@ async def on_reaction_add(reaction, user):
     msg = reaction.message
 
     # If the message wasn't authored by bot or the emoji is non-standard, return
-    if msg.author != bot.user or type(reaction.emoji) == discord.PartialEmoji: return
+    if msg.author != bot.user or type(reaction.emoji) == discord.PartialEmoji:
+        return
 
-    if reaction.emoji in ("🤐","🤫","🔇"):
+    if reaction.emoji in ("🤐", "🤫", "🔇"):
         found, duration, started = db.getShutUpDuration(msg.guild.id, msg.channel.id)
-        if found: 
-            await msg.add_reaction(emoji="\U0001f197") #Ok
+        if found:
+            await msg.add_reaction(emoji="\U0001f197")  # Ok
         else:
             success = db.addShutUpRecord(msg.guild.id, msg.channel.id, 5)
             if success:
-                await msg.add_reaction(emoji="\U0001f197") #Ok
+                await msg.add_reaction(emoji="\U0001f197")  # Ok
                 await msg.add_reaction(emoji="⌚")
                 await msg.add_reaction(emoji="5️⃣")
 
     for r in msg.reactions:
-        reactors = await r.users().flatten()    
+        reactors = await r.users().flatten()
         for i in reactors:
-            if i not in users: users.append(i.id)
-        if r.emoji.startswith('👎'): thumbDown.append(r.emoji)
-    
-    if len(users) >= 3 and len(thumbDown) >= 3: await msg.delete()
+            if i not in users:
+                users.append(i.id)
+        if r.emoji.startswith("👎"):
+            thumbDown.append(r.emoji)
+
+    if len(users) >= 3 and len(thumbDown) >= 3:
+        await msg.delete()
+
 
 @bot.event
 async def on_message(message):
     msgOut = None
-    botCommand = True if message.content.startswith('!') else False
+    botCommand = True if message.content.startswith("!") else False
     id = None
     reaction = 0
 
     # Ignore bots (should include himself)
-    if message.author.bot: return
+    if message.author.bot:
+        return
 
     # Reject DMs. May do something with this later.
-    if isinstance(message.channel, discord.channel.DMChannel): 
+    if isinstance(message.channel, discord.channel.DMChannel):
         await message.channel.send("""I don't _do_ "DM"s""")
         return
 
@@ -160,49 +176,64 @@ async def on_message(message):
     print(message)
 
     # Standardize emotes to _<words>_
-    msgIn = parseUtil.convertEmote(message.content) 
+    msgIn = parseUtil.convertEmote(message.content)
 
     # Collapse message to one line
-    msgIn = re.sub(r'\n',' ',msgIn) 
+    msgIn = re.sub(r"\n", " ", msgIn)
 
     # Convert notification reference to "$self" variable
-    msgIn = parseUtil.mentionToSelfVar(msgIn, db.getBotRole(message.guild.id, message.channel.id), botID)
+    msgIn = parseUtil.mentionToSelfVar(
+        msgIn, db.getBotRole(message.guild.id, message.channel.id), botID
+    )
     # Discord removes spaces from between successive mentions, so we'll put one back if that's the case
-    msgIn = msgIn.replace('$self<','$self <')
+    msgIn = msgIn.replace("$self<", "$self <")
 
-    if msgIn.startswith('_gives $self') and msgIn.endswith('_'):
+    if msgIn.startswith("_gives $self") and msgIn.endswith("_"):
         # Given Inventory item
-        itemRegex = re.compile(r'^_{1}(?:gives \$self )(.*)_{1}$')
-        item = itemRegex.match(msgIn).group(1).strip('!.?')
+        itemRegex = re.compile(r"^_{1}(?:gives \$self )(.*)_{1}$")
+        item = itemRegex.match(msgIn).group(1).strip("!.?")
 
         # If given a url or an item containing an image, reject
-        if re.match(r"^<?https?:\/\/.*>?$", item, re.I) or re.match(r".*<?https?:\/\/.*(.gif|.jpg|.png|.jpeg|.bmp)>?.*$", item, re.I):
-            msgOut = '_throws it on the ground_'
+        if re.match(r"^<?https?:\/\/.*>?$", item, re.I) or re.match(
+            r".*<?https?:\/\/.*(.gif|.jpg|.png|.jpeg|.bmp)>?.*$", item, re.I
+        ):
+            msgOut = "_throws it on the ground_"
         else:
-            if not db.addToInventory(message.guild.id, message.author.display_name, item, message.author.id):
-                msgOut = 'something went wrong'
+            if not db.addToInventory(
+                message.guild.id, message.author.display_name, item, message.author.id
+            ):
+                msgOut = "something went wrong"
             else:
-                msgOut = '_added %s to his inventory_' % item
+                msgOut = "_added %s to his inventory_" % item
 
     elif not botCommand:
-        found, duration, started = db.getShutUpDuration(message.guild.id, message.channel.id)
-        if found: return
+        found, duration, started = db.getShutUpDuration(
+            message.guild.id, message.channel.id
+        )
+        if found:
+            return
 
         nsfwTag = 1 if message.channel.is_nsfw() else 0
 
         # Check to see if factoid triggered
-        msgInParts = msgIn.split('$self')
-        msgIn = '$self'.join(e.translate(str.maketrans(dict.fromkeys(string.punctuation))).lower() for e in msgInParts).strip()
+        msgInParts = msgIn.split("$self")
+        msgIn = "$self".join(
+            e.translate(str.maketrans(dict.fromkeys(string.punctuation))).lower()
+            for e in msgInParts
+        ).strip()
 
         id, msgOut, reaction = db.getFact(msgIn, nsfwTag, TRIGGER_ANYWHERE)
-        if id: print(f'Triggered {id} with {msgIn}')
+        if id:
+            print(f"Triggered {id} with {msgIn}")
 
         # If factoid not triggered by incoming message, check for random
-        randomNum = random.randint(1,100)
-        print(f"Random number {randomNum} <= {db.getFreq(message.guild.id, message.channel.id)} ({message.guild.name}|{message.channel.name})?")
-        if id == None and randomNum <= db.getFreq(message.guild.id, message.channel.id): 
+        randomNum = random.randint(1, 100)
+        print(
+            f"Random number {randomNum} <= {db.getFreq(message.guild.id, message.channel.id)} ({message.guild.name}|{message.channel.name})?"
+        )
+        if id == None and randomNum <= db.getFreq(message.guild.id, message.channel.id):
             id, msgOut, reaction = db.getFact(None, nsfwTag)
-            print(f'Triggered {id}')
+            print(f"Triggered {id}")
 
         # Update called metrics for factoid if called
         if id != None:
@@ -211,38 +242,41 @@ async def on_message(message):
 
         # Replace $nick variables with message author
         try:
-            msgOut = msgOut.replace('$nick','<@!' + str(message.author.id) + '>') 
+            msgOut = msgOut.replace("$nick", "<@!" + str(message.author.id) + ">")
         except:
             pass
 
         # Replace $rand variables each with random guild member or "nobody" if $rands outnumber guild members
-        randCount = msgOut.count('$rand') if msgOut != None else 0
+        randCount = msgOut.count("$rand") if msgOut != None else 0
 
         if randCount:
             guildMembers = message.guild.members
-            for m in guildMembers: 
+            for m in guildMembers:
                 # Do not include offline or busy users and do not include self
-                if (m.status != 'online' and m.status != 'idle') or m.id == botID: guildMembers.remove(m)
+                if (m.status != "online" and m.status != "idle") or m.id == botID:
+                    guildMembers.remove(m)
 
-            randList = random.sample(guildMembers,randCount)
+            randList = random.sample(guildMembers, randCount)
             for i in range(randCount):
-                if i >= len(randList): randList.append('nobody')
-                randUser = '<@!' + str(randList[i-1].id) + '>'
-                msgOut = msgOut.replace('$rand', randUser, 1)
+                if i >= len(randList):
+                    randList.append("nobody")
+                randUser = "<@!" + str(randList[i - 1].id) + ">"
+                msgOut = msgOut.replace("$rand", randUser, 1)
 
         # Replace $item variables each with random inventory item
-        itemCount = msgOut.count('$item') if msgOut != None else 0
+        itemCount = msgOut.count("$item") if msgOut != None else 0
         for i in range(itemCount):
             randItem = db.getInventoryItem(message.guild.id)
-            msgOut = msgOut.replace('$item', randItem, 1)
-                
+            msgOut = msgOut.replace("$item", randItem, 1)
+
     if msgOut != None:
-        if reaction ==1:
+        if reaction == 1:
             await message.add_reaction(msgOut)
         else:
             await message.channel.send(msgOut)
 
     await bot.process_commands(message)
+
 
 def main():
     bot.add_cog(general.General(bot, SOURCE))
@@ -251,5 +285,6 @@ def main():
     bot.add_cog(factoids.Factoids(bot, db, OWNER))
     bot.run(TOKEN)
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()
