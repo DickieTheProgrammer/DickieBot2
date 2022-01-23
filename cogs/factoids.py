@@ -55,7 +55,7 @@ class Factoids(commands.Cog):
                 msgOut = f"""You're the boss. Frequency for {ctx.channel.name} set to {frequency}%"""
             else:
                 msgOut = random.sample(self.noList, 1)[0]
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             msgOut = "Something went wrong setting random frequency"
 
         await ctx.send(msgOut)
@@ -77,17 +77,17 @@ class Factoids(commands.Cog):
         brief="or !undelete, toggles deleted/undeleted",
     )
     async def delfact(self, ctx, id=None):
-        if id != None and not id.isnumeric():
+        if id is not None and not id.isnumeric():
             await ctx.send("This is not a valid factoid ID")
             return
 
         fact = (
             self.db.factInfo(
                 id
-                if id != None
+                if id is not None
                 else self.db.getLastFactID(ctx.guild.id, ctx.channel.id)
             )
-            if id == None or str(id).isnumeric()
+            if id is None or str(id).isnumeric()
             else []
         )
 
@@ -96,7 +96,7 @@ class Factoids(commands.Cog):
         )
         delNum = 1 if ctx.invoked_with in ["delete", "del", "baleet"] else 0
 
-        if fact == None:
+        if fact is None:
             msgOut = f"Something went wrong trying to {delDesc} fact ID {fact[0]}" ""
         elif len(fact) == 0:
             msgOut = f"Couldn't find fact ID {fact[0]}"
@@ -126,18 +126,18 @@ class Factoids(commands.Cog):
         fact = (
             self.db.factInfo(
                 id
-                if id != None
+                if id is not None
                 else self.db.getLastFactID(ctx.guild.id, ctx.channel.id)
             )
-            if id == None or str(id).isnumeric()
+            if id is None or str(id).isnumeric()
             else []
         )
 
-        if fact == None:
+        if fact is None:
             msgOut = f"Something went wrong retrieving fact info for ID {id}"
             await ctx.send(msgOut)
         elif len(fact) == 0:
-            msgOut = """¯\_(ツ)_/¯"""
+            msgOut = """¯\_(ツ)_/¯"""  # noqa: W605
             await ctx.send(msgOut)
         else:
             st = "||" if fact[3] == 1 and not ctx.channel.is_nsfw else ""
@@ -153,7 +153,7 @@ class Factoids(commands.Cog):
                 text=f"""{'Spoiler tags for SFW channel' if st else ''}"""
             )
 
-            message = await ctx.send(embed=msgEmbed)
+            message = await ctx.send(embed=msgEmbed)  # noqa: F841
 
             def check(reaction, user):
                 return False
@@ -208,7 +208,7 @@ class Factoids(commands.Cog):
                 repl = ""
             else:
                 s, pattern, repl = regEx.strip("g").strip("/").split("/")
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             await ctx.send(
                 "Syntax is !mod <id> {substitution string in form s/pattern/replacement}"
             )
@@ -230,10 +230,10 @@ class Factoids(commands.Cog):
             msgOut = f"""Pattern "{pattern}" not found."""
         elif not results[3]:
             msgOut = (
-                f"""Replacement must result in >=4 characters and not start with !"""
+                """Replacement must result in >=4 characters and not start with !"""
             )
         elif not results[4]:
-            msgOut = f"""Message wasn't changed by this substitution."""
+            msgOut = """Message wasn't changed by this substitution."""
         elif not results[0]:
             msgOut = f"Something went wrong modifying fact id {lastID}"
         else:
@@ -268,7 +268,7 @@ class Factoids(commands.Cog):
     @commands.command(
         name="on",
         aliases=["onnsfw"],
-        description=f"""Assign a response to triggering phrase. !on<nsfw> {{trigger}} -say|-react {{response}}.
+        description="""Assign a response to triggering phrase. !on<nsfw> {{trigger}} -say|-react {{response}}.
                     Using !onnsfw marks the response as NSFW and will not be triggered in SFW channels.
                     Use $self to refer to the bot in the trigger. i.e. !on "Hi $self" -say Hello.
                     Use $rand, $nick, and $item in response to sub in a random user, the triggering user, and an inventory item, respectively.
@@ -496,7 +496,7 @@ class Factoids(commands.Cog):
             if timeLeft < 0:
                 msgOut = """Strange. I should be done with"""
             elif timeLeft < 10:
-                msgOut = f"""Almost done with"""
+                msgOut = """Almost done with"""
             elif timeLeft < 30:
                 msgOut = """I've got less than 30 seconds of"""
             elif timeLeft < 60:

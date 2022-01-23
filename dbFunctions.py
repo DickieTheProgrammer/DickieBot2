@@ -7,7 +7,6 @@ import time
 import sqlite3 as sql
 from datetime import datetime
 from dateutil import tz
-from discord.channel import TextChannel
 
 
 class Connection:
@@ -16,7 +15,7 @@ class Connection:
 
         self.conn = sql.connect(self.db, cached_statements=0)
 
-        c = self.conn.execute(
+        self.conn.execute(
             """
             CREATE TABLE IF NOT EXISTS FACTS (
                 ID              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,7 +33,7 @@ class Connection:
         """
         )
 
-        c = self.conn.execute(
+        self.conn.execute(
             """
             CREATE UNIQUE INDEX IF NOT EXISTS FINDX ON FACTS (
                 ifnull(TRIGGER,'0'),
@@ -44,7 +43,7 @@ class Connection:
         """
         )
 
-        c = self.conn.execute(
+        self.conn.execute(
             """
             CREATE TABLE IF NOT EXISTS HISTORY (
                 ID              INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -61,7 +60,7 @@ class Connection:
         """
         )
 
-        c = self.conn.execute(
+        self.conn.execute(
             """
             CREATE TABLE IF NOT EXISTS INVENTORY(
                 ID          INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -74,7 +73,7 @@ class Connection:
         """
         )
 
-        c = self.conn.execute(
+        self.conn.execute(
             """
             CREATE TABLE IF NOT EXISTS GUILDSTATE(
                 GUILD       INTEGER NOT NULL,
@@ -88,7 +87,7 @@ class Connection:
         """
         )
 
-        c = self.conn.execute(
+        self.conn.execute(
             """
             CREATE TABLE IF NOT EXISTS SILENCED(
                 GUILD       INTEGER,
@@ -137,12 +136,11 @@ class Connection:
 
     def delShutUpRecord(self, guild, channel):
         try:
-            c = self.conn.execute(
+            self.conn.execute(
                 """delete from SILENCED where GUILD = ? and CHANNEL = ?""",
                 (guild, channel),
             )
             self.conn.commit()
-            success = True
         except Exception as e:
             print(inspect.stack()[0][3])
             print(inspect.stack()[1][3])
@@ -152,7 +150,7 @@ class Connection:
         success = False
 
         try:
-            c = self.conn.execute(
+            self.conn.execute(
                 """
             insert into SILENCED (GUILD, CHANNEL, DURATION, STARTED)
             values (?, ?, ?, ?)
@@ -171,7 +169,7 @@ class Connection:
     def initGuild(self, guild, roleID, channel):
         success = False
         try:
-            c = self.conn.execute(
+            self.conn.execute(
                 """
             insert into GUILDSTATE (GUILD, BOTROLE, CHANNEL)
             select ?, ?, ? where not exists (select GUILD from GUILDSTATE where GUILD = ? and CHANNEL = ?)
@@ -191,12 +189,12 @@ class Connection:
     def deleteGuildState(self, guild, channel=None):
         success = False
         try:
-            if channel == None:
-                c = self.conn.execute(
+            if channel is None:
+                self.conn.execute(
                     """delete from GUILDSTATE where guild = ?""", (guild,)
                 )
             else:
-                c = self.conn.execute(
+                self.conn.execute(
                     """delete from GUILDSTATE where guild = ? and channel = ?""",
                     (guild, channel),
                 )
@@ -214,7 +212,7 @@ class Connection:
         success = False
 
         try:
-            c = self.conn.execute(
+            self.conn.execute(
                 """update GUILDSTATE set RANDFREQ = ? where GUILD = ? and CHANNEL = ?""",
                 (freq, guild, channel),
             )
@@ -263,7 +261,7 @@ class Connection:
         success = False
 
         try:
-            c = self.conn.execute(
+            self.conn.execute(
                 """update GUILDSTATE set BOTROLE = ? where GUILD = ? and CHANNEL = ?""",
                 (roleID, guild, channel),
             )
@@ -280,7 +278,7 @@ class Connection:
         success = False
 
         try:
-            c = self.conn.execute(
+            self.conn.execute(
                 """update GUILDSTATE set LASTFACT = ? where GUILD = ? and CHANNEL = ?""",
                 (lastFact, guild, channel),
             )
@@ -297,7 +295,7 @@ class Connection:
         success = False
 
         try:
-            c = self.conn.execute(
+            self.conn.execute(
                 """
             INSERT INTO INVENTORY (GUILD, ITEM, USER, DATEADDED, USER_ID)
             values(?,?,?,?,?)
@@ -490,17 +488,16 @@ class Connection:
         return (success, known, id)
 
     def getFact(self, trigger, nsfw, anywhere=False):
-        success = False
         msgOut = None
         id = None
 
         sqlIn = [0] if nsfw == 0 else [0, 1]
 
         try:
-            if trigger == None:
+            if trigger is None:
                 # Random Factoid
                 sql = (
-                    f"""select ID, MSG, REACTION from FACTS
+                    """select ID, MSG, REACTION from FACTS
                     where DELETED = 0 and TRIGGER is null and NSFW in ("""
                     + ",".join(str(n) for n in sqlIn)
                     + """)
@@ -516,7 +513,7 @@ class Connection:
                     trigger_cond = "TRIGGER = ?"
 
                 sql = (
-                    f"""
+                    """
                     select ID, MSG, REACTION from FACTS
                     where DELETED = 0 and TRIGGER IS NOT NULL and """
                     + trigger_cond
@@ -563,7 +560,7 @@ class Connection:
 
     def updateLastCalled(self, id):
         try:
-            c = self.conn.execute(
+            self.conn.execute(
                 """update FACTS set LASTCALLED=?, CNT = CNT + 1 where ID = ?""",
                 (self.getCurrentDateTime(), id),
             )
@@ -589,7 +586,7 @@ class Connection:
             print(srch)
             print(pattern)
             print(oldResp)
-            if srch != None:
+            if srch is not None:
                 matched = True
 
                 try:
@@ -664,7 +661,7 @@ class Connection:
             )
             results = c.fetchall()
 
-            if results == None or len(results) == 0:
+            if results is None or len(results) == 0:
                 c = self.conn.execute(
                     """update FACTS set DELETED = ? where ID = ?""", (deleted, id)
                 )
@@ -698,7 +695,7 @@ class Connection:
             )
             results = c.fetchall()
 
-            if results != None and len(results) == 1:
+            if results is not None and len(results) == 1:
                 undeleted = True
             else:
                 c = self.conn.execute(

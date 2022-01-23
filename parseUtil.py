@@ -28,12 +28,12 @@ def escapeFormatting(msgIn):
     # Escape things like :
     # bold (*), italics (_), spoilers (|), strikethrough (~), quote (>), and code (`)
     msgOut = (
-        msgIn.replace("_", "\_")
-        .replace("*", "\*")
-        .replace("|", "\|")
-        .replace("~", "\~")
-        .replace(">", "\>")
-        .replace("`", "\`")
+        msgIn.replace("_", r"\_")
+        .replace("*", r"\*")
+        .replace("|", r"\|")
+        .replace("~", r"\~")
+        .replace(">", r"\>")
+        .replace("`", r"\`")
     )
 
     return msgOut

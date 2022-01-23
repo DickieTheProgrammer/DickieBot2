@@ -5,7 +5,6 @@ import json
 import parseUtil
 import wikipedia
 import random
-import inspect
 import fandom
 import re
 import pyowm
@@ -52,7 +51,7 @@ class Information(commands.Cog):
             mgr = self.owm.weather_manager()
             try:
                 observation = mgr.weather_at_place(location)
-            except:
+            except:  # noqa: E722
                 observation = mgr.weather_at_place(location + ", US")
             weather = observation.weather
             resolvedLoc = (
@@ -64,7 +63,7 @@ class Information(commands.Cog):
             td = weather.temperature("fahrenheit")
             temp = f"""{td['temp']}, feels like {td['feels_like']}"""
             humidity = f"""{weather.humidity}%"""
-        except:
+        except:  # noqa: E722
             await ctx.send(f"Unable to retrieve weather information from {location}")
             return
 
@@ -75,7 +74,7 @@ class Information(commands.Cog):
         )
         msgEmbed.add_field(
             name="\u200B",
-            value=f"""Via [https://openweathermap.org/](https://openweathermap.org/)""",
+            value="""Via [https://openweathermap.org/](https://openweathermap.org/)""",
         )
         await ctx.send(embed=msgEmbed)
 
@@ -88,11 +87,11 @@ class Information(commands.Cog):
     async def fandom(self, ctx, wikiName, *, searchTerm=None):
         subdomain = self.fandomRedirect(wikiName)
 
-        if subdomain == None:
+        if subdomain is None:
             await ctx.send(f"""Subdomain {wikiName} not found.""")
             return
 
-        if searchTerm == None:
+        if searchTerm is None:
             r = requests.get(f"""https://{subdomain}.fandom.com/Special:Random""")
             searchTerm = r.url.strip(f"""https://{subdomain}.fandom.com/wiki/""")
 
@@ -118,7 +117,7 @@ class Information(commands.Cog):
                 if len(content) > 3000:
                     content = content[: (content[:3000].rfind(".") + 1)]
                 print(len(content))
-        except:
+        except:  # noqa: E722
             await ctx.send("Something went wrong, probably that wiki doesn't exist.")
             return
 
@@ -141,7 +140,7 @@ class Information(commands.Cog):
         brief="Get Wikipedia article summary",
     )
     async def wiki(self, ctx, *, searchTerm=None):
-        if searchTerm == None:
+        if searchTerm is None:
             page = wikipedia.page(wikipedia.random(pages=1))
         else:
             try:
@@ -175,13 +174,13 @@ class Information(commands.Cog):
     async def ud(self, ctx, *, searchTerm=None):
         st = ""  # Spoiler Tags
 
-        if ctx.channel.nsfw == False:
+        if ctx.channel.nsfw is False:
             st = "||"
 
         URL = """https://api.urbandictionary.com/v0/"""
         contents = []
 
-        if searchTerm == None:
+        if searchTerm is None:
             URL = URL + """random"""
         else:
             URL = URL + f"""define?term={searchTerm}"""

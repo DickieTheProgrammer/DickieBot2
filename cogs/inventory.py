@@ -35,7 +35,7 @@ class Inventory(commands.Cog):
     async def inv(self, ctx):
         itemList = self.db.getInventory(ctx.guild.id)
 
-        if itemList == None:
+        if itemList is None:
             await ctx.send("Something went wrong fetching inventory.")
             return
 
@@ -67,7 +67,7 @@ class Inventory(commands.Cog):
         donors = self.db.getItemDonor(ctx.guild.id, item)
         resolvedDonors = []
 
-        if donors == None:
+        if donors is None:
             msgOut = "Something went wrong finding the donor of this item."
         elif len(donors) == 0:
             msgOut = "I don't have that."

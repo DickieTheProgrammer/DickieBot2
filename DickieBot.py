@@ -7,9 +7,8 @@ import re
 import random
 import string
 import parseUtil
-import sys
 from cogs import general, factoids, inventory, info
-from discord import member, utils
+from discord import utils
 from dbFunctions import Connection
 from dotenv import load_dotenv
 from discord.ext import commands
@@ -55,7 +54,7 @@ async def on_ready():
         # Sometimes the bot joins a server and automatically gets a role with the same name as him
         # If this happens, capture it and save the bot role
         role = utils.get(gld.roles, name=botName)
-        roleID = 0 if role == None else role.id
+        roleID = 0 if role is None else role.id
         for i in gld.text_channels:
             db.initGuild(gld.id, roleID, i.id)
 
@@ -69,7 +68,7 @@ async def on_guild_join(guild):
     # Sometimes the bot joins a server and automatically gets a role with the same name as him
     # If this happens, capture it and save the bot role
     role = utils.get(guild.roles, name=botName)
-    roleID = 0 if role == None else role.id
+    roleID = 0 if role is None else role.id
     for i in guild.text_channels:
         if db.initGuild(guild.id, roleID, i.id):
             print(f"""{i.name} in {guild.name} initialized.""")
@@ -84,7 +83,7 @@ async def on_guild_channel_create(channel):
         return
 
     role = utils.get(channel.guild.roles, name=botName)
-    roleID = 0 if role == None else role.id
+    roleID = 0 if role is None else role.id
     if db.initGuild(channel.guild.id, roleID, channel.id):
         print(f"""{channel.name} in {channel.guild.name} initialized.""")
     else:
@@ -156,7 +155,7 @@ async def on_reaction_add(reaction, user):
 
 
 @bot.event
-async def on_message(message):
+async def on_message(message):  # noqa: C901
     msgOut = None
     botCommand = True if message.content.startswith("!") else False
     id = None
@@ -231,23 +230,23 @@ async def on_message(message):
         print(
             f"Random number {randomNum} <= {db.getFreq(message.guild.id, message.channel.id)} ({message.guild.name}|{message.channel.name})?"
         )
-        if id == None and randomNum <= db.getFreq(message.guild.id, message.channel.id):
+        if id is None and randomNum <= db.getFreq(message.guild.id, message.channel.id):
             id, msgOut, reaction = db.getFact(None, nsfwTag)
             print(f"Triggered {id}")
 
         # Update called metrics for factoid if called
-        if id != None:
+        if id is not None:
             db.updateLastFact(message.guild.id, id, message.channel.id)
             db.updateLastCalled(id)
 
         # Replace $nick variables with message author
         try:
             msgOut = msgOut.replace("$nick", "<@!" + str(message.author.id) + ">")
-        except:
+        except:  # noqa: E722
             pass
 
         # Replace $rand variables each with random guild member or "nobody" if $rands outnumber guild members
-        randCount = msgOut.count("$rand") if msgOut != None else 0
+        randCount = msgOut.count("$rand") if msgOut is not None else 0
 
         if randCount:
             guildMembers = message.guild.members
@@ -264,12 +263,12 @@ async def on_message(message):
                 msgOut = msgOut.replace("$rand", randUser, 1)
 
         # Replace $item variables each with random inventory item
-        itemCount = msgOut.count("$item") if msgOut != None else 0
+        itemCount = msgOut.count("$item") if msgOut is not None else 0
         for i in range(itemCount):
             randItem = db.getInventoryItem(message.guild.id)
             msgOut = msgOut.replace("$item", randItem, 1)
 
-    if msgOut != None:
+    if msgOut is not None:
         if reaction == 1:
             await message.add_reaction(msgOut)
         else:
