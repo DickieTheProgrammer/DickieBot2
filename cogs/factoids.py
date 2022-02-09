@@ -55,7 +55,7 @@ class Factoids(commands.Cog):
                 msgOut = f"""You're the boss. Frequency for {ctx.channel.name} set to {frequency}%"""
             else:
                 msgOut = random.sample(self.noList, 1)[0]
-        except:  # noqa: 722
+        except:  # noqa: E722
             msgOut = "Something went wrong setting random frequency"
 
         await ctx.send(msgOut)
