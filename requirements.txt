@@ -1,0 +1,5 @@
+discord.py
+fandom-py
+pyowm
+requests
+wikipedia
