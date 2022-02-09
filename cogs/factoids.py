@@ -55,7 +55,7 @@ class Factoids(commands.Cog):
                 msgOut = f"""You're the boss. Frequency for {ctx.channel.name} set to {frequency}%"""
             else:
                 msgOut = random.sample(self.noList, 1)[0]
-        except Exception as e:  # noqa: F841
+        except:  # noqa: E722
             msgOut = "Something went wrong setting random frequency"
 
         await ctx.send(msgOut)
@@ -137,9 +137,10 @@ class Factoids(commands.Cog):
             msgOut = f"Something went wrong retrieving fact info for ID {id}"
             await ctx.send(msgOut)
         elif len(fact) == 0:
-            msgOut = """¯\_(ツ)_/¯"""  # noqa: W605
+            msgOut = r"""¯\_(ツ)_/¯"""
             await ctx.send(msgOut)
         else:
+            #spoiler tag
             st = "||" if fact[3] == 1 and not ctx.channel.is_nsfw else ""
 
             msgEmbed = discord.Embed(
@@ -153,7 +154,7 @@ class Factoids(commands.Cog):
                 text=f"""{'Spoiler tags for SFW channel' if st else ''}"""
             )
 
-            message = await ctx.send(embed=msgEmbed)  # noqa: F841
+            await ctx.send(embed=msgEmbed)
 
             def check(reaction, user):
                 return False
@@ -208,7 +209,7 @@ class Factoids(commands.Cog):
                 repl = ""
             else:
                 s, pattern, repl = regEx.strip("g").strip("/").split("/")
-        except Exception as e:  # noqa: F841
+        except:  # noqa: E722
             await ctx.send(
                 "Syntax is !mod <id> {substitution string in form s/pattern/replacement}"
             )
