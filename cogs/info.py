@@ -153,6 +153,9 @@ class Information(commands.Cog):
                 print(inspect.stack()[0][3])
                 print(inspect.stack()[1][3])
                 print(e)
+
+                await ctx.send(f"No article found for '{searchTerm}'.")
+
                 return
 
         content = re.sub(r"\n", "\n\n", page.summary).strip()
