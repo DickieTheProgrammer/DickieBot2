@@ -140,7 +140,7 @@ class Factoids(commands.Cog):
             msgOut = r"""¯\_(ツ)_/¯"""
             await ctx.send(msgOut)
         else:
-            #spoiler tag
+            # spoiler tag
             st = "||" if fact[3] == 1 and not ctx.channel.is_nsfw else ""
 
             msgEmbed = discord.Embed(
@@ -158,11 +158,6 @@ class Factoids(commands.Cog):
 
             def check(reaction, user):
                 return False
-
-            """try:
-                await self.bot.wait_for("reaction_add",timeout=60, check=check)
-            except asyncio.TimeoutError:
-                await message.delete()"""
 
     @commands.command(
         name="onrand",
@@ -473,9 +468,9 @@ class Factoids(commands.Cog):
                     await message.remove_reaction(reaction, user)
 
                 else:
-                    await message.remove_reaction(reaction, user)
                     # removes reactions if the user tries to go forward on the last page or
                     # backwards on the first page
+                    await message.remove_reaction(reaction, user)
             except asyncio.TimeoutError:
                 await message.delete()
                 break
