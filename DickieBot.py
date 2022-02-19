@@ -232,6 +232,7 @@ async def on_message(message):  # noqa: C901
         )
         if id is None and randomNum <= db.getFreq(message.guild.id, message.channel.id):
             id, msgOut, reaction = db.getFact(None, nsfwTag)
+            cap = True if msgOut.startswith("$item") else False
             print(f"Triggered {id}")
 
         # Update called metrics for factoid if called
@@ -272,7 +273,7 @@ async def on_message(message):  # noqa: C901
         if reaction == 1:
             await message.add_reaction(msgOut)
         else:
-            await message.channel.send(msgOut)
+            await message.channel.send(msgOut.capitalize() if cap else msgOut)
 
     await bot.process_commands(message)
 

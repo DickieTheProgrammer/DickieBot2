@@ -13,15 +13,15 @@ class General(commands.Cog):
 
     @commands.command(
         name="roll",
-        description="Simulates dice rolls. Syntax is !roll {{number}}d{{number}}.",
-        brief="Rolls dem bones - {{number}}d{{number}}",
+        description="Simulates dice rolls. Syntax is !roll {number}d{number}.",
+        brief="Rolls dem bones - {number}d{number}",
     )
     async def roll(self, ctx, dice: str):
         # Rolls a dice in NdN format.
         try:
             rolls, limit = map(int, dice.split("d"))
         except Exception:
-            await ctx.send("Format has to be in {{number}}**d**{{number}}")
+            await ctx.send("Format has to be in {number}**d**{number}")
             return
 
         if rolls > 25:
