@@ -230,6 +230,9 @@ async def on_message(message):  # noqa: C901
         print(
             f"Random number {randomNum} <= {db.getFreq(message.guild.id, message.channel.id)} ({message.guild.name}|{message.channel.name})?"
         )
+
+        cap = False
+
         if id is None and randomNum <= db.getFreq(message.guild.id, message.channel.id):
             id, msgOut, reaction = db.getFact(None, nsfwTag)
             cap = True if msgOut.startswith("$item") else False
