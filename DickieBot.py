@@ -160,6 +160,7 @@ async def on_message(message):  # noqa: C901
     botCommand = True if message.content.startswith("!") else False
     id = None
     reaction = 0
+    cap = False
 
     # Ignore bots (should include himself)
     if message.author.bot:
@@ -230,6 +231,7 @@ async def on_message(message):  # noqa: C901
         print(
             f"Random number {randomNum} <= {db.getFreq(message.guild.id, message.channel.id)} ({message.guild.name}|{message.channel.name})?"
         )
+
         if id is None and randomNum <= db.getFreq(message.guild.id, message.channel.id):
             id, msgOut, reaction = db.getFact(None, nsfwTag)
             cap = True if msgOut.startswith("$item") else False
