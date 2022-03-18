@@ -15,89 +15,123 @@ class Connection:
 
         self.conn = sql.connect(self.db, cached_statements=0)
 
-        self.conn.execute(
+        c = self.conn.execute(
             """
-            CREATE TABLE IF NOT EXISTS FACTS (
-                ID              INTEGER PRIMARY KEY AUTOINCREMENT,
-                MSG             VARCHAR2(2000) NOT NULL,
-                TRIGGER         VARCHAR2(2000),
-                NSFW            INTEGER NOT NULL DEFAULT 0,
-                DELETED         INTEGER NOT NULL DEFAULT 0,
-                CNT             INTEGER NOT NULL DEFAULT 0,
-                CREATOR         VARCHAR2(37),
-                CREATED         VARCHAR2(23), /* YYYY-MM-DD HH:MI:SS TZ */
-                LASTCALLED      VARCHAR2(23), /* YYYY-MM-DD HH:MI:SS TZ */
-                CREATOR_ID      VARCHAR2(37),
-                REACTION        INTEGER NOT NULL DEFAULT 0
-            )
+            PRAGMA user_version;
         """
         )
+        user_version = c.fetchone()[0]
+        print("DB is open with schema version", user_version)
 
-        self.conn.execute(
+        if user_version == 0:
+            print("Brand new db, or the db predates user_version tracking. creating tables.")
+            self.conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS FACTS (
+                    ID              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    MSG             VARCHAR2(2000) NOT NULL,
+                    TRIGGER         VARCHAR2(2000),
+                    NSFW            INTEGER NOT NULL DEFAULT 0,
+                    DELETED         INTEGER NOT NULL DEFAULT 0,
+                    CNT             INTEGER NOT NULL DEFAULT 0,
+                    CREATOR         VARCHAR2(37),
+                    CREATED         VARCHAR2(23), /* YYYY-MM-DD HH:MI:SS TZ */
+                    LASTCALLED      VARCHAR2(23), /* YYYY-MM-DD HH:MI:SS TZ */
+                    CREATOR_ID      VARCHAR2(37),
+                    REACTION        INTEGER NOT NULL DEFAULT 0,
+                    MATCH_ANYWHERE  INTEGER NOT NULL DEFAULT 0
+                )
             """
-            CREATE UNIQUE INDEX IF NOT EXISTS FINDX ON FACTS (
-                ifnull(TRIGGER,'0'),
-                MSG,
-                REACTION
             )
-        """
-        )
+    
+            self.conn.execute(
+                """
+                CREATE UNIQUE INDEX IF NOT EXISTS FINDX ON FACTS (
+                    ifnull(TRIGGER,'0'),
+                    MSG,
+                    REACTION
+                )
+            """
+            )
+    
+            self.conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS HISTORY (
+                    ID              INTEGER PRIMARY KEY AUTOINCREMENT,
+                    FACT            INTEGER NOT NULL,
+                    OLDMSG          VARCHAR2(2000),
+                    NEWMSG          VARCHAR2(2000),
+                    DELETED         INTEGER NOT NULL DEFAULT 0,
+                    NSFW            INTEGER NOT NULL DEFAULT 0,
+                    USER            VARCHAR2(37),
+                    EDITDATE        VARCHAR2(23), /* YYYY-MM-DD HH:MI:SS TZ */
+                    USER_ID         VARCHAR2(37),
+                    FOREIGN KEY (FACT) REFERENCES FACTS (ID)
+                )
+            """
+            )
+    
+            self.conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS INVENTORY(
+                    ID          INTEGER PRIMARY KEY AUTOINCREMENT,
+                    GUILD       INTEGER NOT NULL,
+                    ITEM        VARCHAR2(100),
+                    USER        VARCHAR2(37),
+                    DATEADDED   VARCHAR2(23), /* YYYY-MM-DD HH:MI:SS TZ */
+                    USER_ID     VARCHAR2(37)
+                )
+            """
+            )
+    
+            self.conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS GUILDSTATE(
+                    GUILD       INTEGER NOT NULL,
+                    LASTFACT    INTEGER,
+                    BOTROLE     INTEGER NOT NULL DEFAULT 0,
+                    RANDFREQ    INTEGER NOT NULL DEFAULT 5,
+                    CHANNEL     INTEGER NOT NULL,
+                    FOREIGN KEY (LASTFACT) REFERENCES FACTS (ID),
+                    PRIMARY KEY (GUILD, CHANNEL)
+                )
+            """
+            )
+    
+            self.conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS SILENCED(
+                    GUILD       INTEGER,
+                    CHANNEL     INTEGER,
+                    DURATION    INTEGER,
+                    STARTED     REAL,
+                    PRIMARY KEY (GUILD, CHANNEL)
+                )
+            """
+            )
 
-        self.conn.execute(
+            self.conn.execute(
+                """
+                PRAGMA user_version = 2
             """
-            CREATE TABLE IF NOT EXISTS HISTORY (
-                ID              INTEGER PRIMARY KEY AUTOINCREMENT,
-                FACT            INTEGER NOT NULL,
-                OLDMSG          VARCHAR2(2000),
-                NEWMSG          VARCHAR2(2000),
-                DELETED         INTEGER NOT NULL DEFAULT 0,
-                NSFW            INTEGER NOT NULL DEFAULT 0,
-                USER            VARCHAR2(37),
-                EDITDATE        VARCHAR2(23), /* YYYY-MM-DD HH:MI:SS TZ */
-                USER_ID         VARCHAR2(37),
-                FOREIGN KEY (FACT) REFERENCES FACTS (ID)
             )
-        """
-        )
+            user_version = 2
 
-        self.conn.execute(
+        if user_version == 1:
+            print("Upgrading to schema v2 (MATCH_ANYWHERE)")
+            self.conn.execute(
+                """
+                ALTER TABLE FACTS ADD COLUMN MATCH_ANYWHERE INTEGER NOT NULL DEFAULT 0
             """
-            CREATE TABLE IF NOT EXISTS INVENTORY(
-                ID          INTEGER PRIMARY KEY AUTOINCREMENT,
-                GUILD       INTEGER NOT NULL,
-                ITEM        VARCHAR2(100),
-                USER        VARCHAR2(37),
-                DATEADDED   VARCHAR2(23), /* YYYY-MM-DD HH:MI:SS TZ */
-                USER_ID     VARCHAR2(37)
             )
-        """
-        )
+            self.conn.execute(
+                """
+                PRAGMA user_version = 2
+            """
+            )
+            user_version = 2
 
-        self.conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS GUILDSTATE(
-                GUILD       INTEGER NOT NULL,
-                LASTFACT    INTEGER,
-                BOTROLE     INTEGER NOT NULL DEFAULT 0,
-                RANDFREQ    INTEGER NOT NULL DEFAULT 5,
-                CHANNEL     INTEGER NOT NULL,
-                FOREIGN KEY (LASTFACT) REFERENCES FACTS (ID),
-                PRIMARY KEY (GUILD, CHANNEL)
-            )
-        """
-        )
-
-        self.conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS SILENCED(
-                GUILD       INTEGER,
-                CHANNEL     INTEGER,
-                DURATION    INTEGER,
-                STARTED     REAL,
-                PRIMARY KEY (GUILD, CHANNEL)
-            )
-        """
-        )
+        print("I am leaving my schema-updating era")
 
     def close(self):
         self.conn.close()
@@ -430,7 +464,7 @@ class Connection:
 
         return (success, known, id)
 
-    def addFact(self, trigger, response, nsfw, creator, creatorID, reaction):
+    def addFact(self, trigger, response, nsfw, creator, creatorID, reaction, match_anywhere):
         success = False
         known = False
         id = None
@@ -438,8 +472,8 @@ class Connection:
         try:
             c = self.conn.execute(
                 """
-            insert into FACTS (MSG, TRIGGER, NSFW, CREATOR, CREATED, CREATOR_ID, REACTION)
-            values (?,?,?,?,?,?,?)
+            insert into FACTS (MSG, TRIGGER, NSFW, CREATOR, CREATED, CREATOR_ID, REACTION, MATCH_ANYWHERE)
+            values (?,?,?,?,?,?,?,?)
             """,
                 (
                     response,
@@ -449,6 +483,7 @@ class Connection:
                     self.getCurrentDateTime(),
                     creatorID,
                     reaction,
+                    match_anywhere,
                 ),
             )
 
@@ -487,7 +522,7 @@ class Connection:
 
         return (success, known, id)
 
-    def getFact(self, trigger, nsfw, anywhere=False):
+    def getFact(self, trigger, nsfw):
         msgOut = None
         id = None
 
@@ -506,24 +541,16 @@ class Connection:
                 c = self.conn.execute(sql)
             else:
                 # Triggered Factoid
-
-                if anywhere:
-                    trigger_cond = "instr(?, TRIGGER)"
-                else:
-                    trigger_cond = "TRIGGER = ?"
-
                 sql = (
                     """
                     select ID, MSG, REACTION from FACTS
-                    where DELETED = 0 and TRIGGER IS NOT NULL and """
-                    + trigger_cond
-                    + """ and NSFW in ("""
+                    where DELETED = 0 and TRIGGER IS NOT NULL and (TRIGGER = ? or (MATCH_ANYWHERE = 1 and instr(?, TRIGGER))) and NSFW in ("""
                     + ",".join(str(n) for n in sqlIn)
                     + """)
                     order by RANDOM() limit 1
                 """
                 )
-                c = self.conn.execute(sql, (trigger,))
+                c = self.conn.execute(sql, (trigger,trigger,))
 
             results = c.fetchall()
 
