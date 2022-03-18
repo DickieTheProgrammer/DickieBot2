@@ -20,12 +20,8 @@ OWNER = os.getenv("OWNER")
 WEATHERAPIKEY = os.getenv("OWMAPIKEY")
 SOURCE = os.getenv("SOURCE")
 
-# backward-compatible config file options
-try:
-    TRIGGER_ANYWHERE = int(os.getenv("TRIGGER_ANYWHERE")) == 1
-    print("TRIGGER_ANYWHERE is", TRIGGER_ANYWHERE)
-except TypeError:
-    TRIGGER_ANYWHERE = False
+# optional config file options
+TRIGGER_ANYWHERE = int(os.getenv("TRIGGER_ANYWHERE", default=0)) == 1
 
 intents = discord.Intents.all()
 
