@@ -14,10 +14,11 @@ DEFAULTPERC = 5
 
 
 class Factoids(commands.Cog):
-    def __init__(self, bot, db: dbFunctions.Connection, owner):
+    def __init__(self, bot, db: dbFunctions.Connection, owner, match_anywhere_by_default):
         self.bot = bot
         self.db = db
         self.owner = owner
+        self.match_anywhere_by_default = match_anywhere_by_default
 
         self.noList = [
             "https://c.tenor.com/2yJBnYOY_j8AAAAC/tonton-tonton-sticker.gif",
@@ -315,6 +316,7 @@ class Factoids(commands.Cog):
                     ctx.message.author.display_name,
                     ctx.message.author.id,
                     0,
+                    self.match_anywhere_by_default,
                 )
 
                 if success:
@@ -374,6 +376,7 @@ class Factoids(commands.Cog):
                     ctx.message.author.display_name,
                     ctx.message.author.id,
                     1,
+                    self.match_anywhere_by_default,
                 )
 
                 if success:

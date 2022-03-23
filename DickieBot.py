@@ -20,12 +20,8 @@ OWNER = os.getenv("OWNER")
 WEATHERAPIKEY = os.getenv("OWMAPIKEY")
 SOURCE = os.getenv("SOURCE")
 
-# backward-compatible config file options
-try:
-    TRIGGER_ANYWHERE = int(os.getenv("TRIGGER_ANYWHERE")) == 1
-    print("TRIGGER_ANYWHERE is", TRIGGER_ANYWHERE)
-except TypeError:
-    TRIGGER_ANYWHERE = False
+# optional config file options
+TRIGGER_ANYWHERE = int(os.getenv("TRIGGER_ANYWHERE", default=0)) == 1
 
 intents = discord.Intents.all()
 
@@ -222,7 +218,7 @@ async def on_message(message):  # noqa: C901
             for e in msgInParts
         ).strip()
 
-        id, msgOut, reaction = db.getFact(msgIn, nsfwTag, TRIGGER_ANYWHERE)
+        id, msgOut, reaction = db.getFact(msgIn, nsfwTag)
         if id:
             print(f"Triggered {id} with {msgIn}")
 
@@ -234,7 +230,8 @@ async def on_message(message):  # noqa: C901
 
         if id is None and randomNum <= db.getFreq(message.guild.id, message.channel.id):
             id, msgOut, reaction = db.getFact(None, nsfwTag)
-            cap = True if msgOut.startswith("$item") else False
+            if msgOut.startswith("$item"):
+                cap = True
             print(f"Triggered {id}")
 
         # Update called metrics for factoid if called
@@ -284,7 +281,7 @@ def main():
     bot.add_cog(general.General(bot, SOURCE))
     bot.add_cog(info.Information(bot, WEATHERAPIKEY))
     bot.add_cog(inventory.Inventory(bot, db))
-    bot.add_cog(factoids.Factoids(bot, db, OWNER))
+    bot.add_cog(factoids.Factoids(bot, db, OWNER, TRIGGER_ANYWHERE))
     bot.run(TOKEN)
 
 
