@@ -525,6 +525,7 @@ class Connection:
     def getFact(self, trigger, nsfw):
         msgOut = None
         id = None
+        reaction = None
 
         sqlIn = [0] if nsfw == 0 else [0, 1]
 
