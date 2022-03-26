@@ -174,7 +174,7 @@ class Factoids(commands.Cog):
         else:
             nsfw = 1 if ctx.invoked_with == "onnsfwrand" else 0
 
-            success, known, id = self.db.addRandFact(
+            success, known, id, deleted = self.db.addRandFact(
                 args, nsfw, ctx.message.author.display_name, ctx.message.author.id
             )
 
@@ -182,7 +182,10 @@ class Factoids(commands.Cog):
                 msgOut = f"""Ok. I'll randomly say "{args}\"\n(ID: {id})"""
             else:
                 if known:
-                    msgOut = f"""Oh, I already know that. It's ID {id}."""
+                    if deleted:
+                        msgOut = f"""I've undeleted id {id} which matched this factoid."""
+                    else:
+                        msgOut = f"""Oh, I already know that. It's ID {id}."""
                 else:
                     msgOut = "Something went wrong adding this factoid."
 
