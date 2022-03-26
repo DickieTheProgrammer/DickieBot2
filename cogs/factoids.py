@@ -73,7 +73,7 @@ class Factoids(commands.Cog):
 
     @commands.command(
         name="delete",
-        aliases=["del", "undel", "undelete", "baleet", "unbaleet"],
+        aliases=["del", "undel", "undelete", "delfact", "undelfact"],
         description="Toggles deleted flag on specified factoid or most recent triggered factoid if none specified.",
         brief="or !undelete, toggles deleted/undeleted",
     )
@@ -309,7 +309,7 @@ class Factoids(commands.Cog):
 
                 nsfw = 1 if ctx.invoked_with == "onnsfw" else 0
 
-                success, known, id = self.db.addFact(
+                success, known, id, deleted = self.db.addFact(
                     cleanTrigger,
                     response,
                     nsfw,
@@ -323,7 +323,10 @@ class Factoids(commands.Cog):
                     msgOut = f"""Ok. When I see "{trigger}" I'll say "{response}\"\n(ID: {id})"""
                 else:
                     if known:
-                        msgOut = f"""Oh, I already know that. It's ID {id}."""
+                        if deleted:
+                            msgOut = f"""I've undeleted id {id} which matched this factoid."""
+                        else:
+                            msgOut = f"""Oh, I already know that. It's ID {id}."""
                     else:
                         msgOut = "Something went wrong adding this factoid."
 
@@ -369,7 +372,7 @@ class Factoids(commands.Cog):
                     await ctx.send("Invalid emoji... I think")
                     return
 
-                success, known, id = self.db.addFact(
+                success, known, id, deleted = self.db.addFact(
                     trigger,
                     reaction,
                     0,
@@ -383,7 +386,10 @@ class Factoids(commands.Cog):
                     msgOut = f"""Ok. When I see "{trigger}" I'll do a "{reaction}\"\n(ID: {id})"""
                 else:
                     if known:
-                        msgOut = f"""Oh, I already know that. It's ID {id}."""
+                        if deleted:
+                            msgOut = f"""I've undeleted id {id} which matched this factoid."""
+                        else:
+                            msgOut = f"""Oh, I already know that. It's ID {id}."""
                     else:
                         msgOut = "Something went wrong adding this factoid."
 

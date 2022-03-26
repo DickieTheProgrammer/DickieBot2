@@ -249,18 +249,26 @@ async def on_message(message):  # noqa: C901
         randCount = msgOut.count("$rand") if msgOut is not None else 0
 
         if randCount:
-            guildMembers = message.guild.members
-            for m in guildMembers:
-                # Do not include offline or busy users and do not include self
-                if (m.status != "online" and m.status != "idle") or m.id == botID:
-                    guildMembers.remove(m)
+            guildMembers = []
 
-            randList = random.sample(guildMembers, randCount)
+            for m in message.guild.members:
+                if (m.status in ("online","idle") and m.id != botID):
+                    print(f"Adding user {m.name} - {m.nick} - {m.id} to rand list")
+                    guildMembers.append(m.id)
+
+            if randCount >= len(guildMembers):
+                for i in range(randCount-len(guildMembers)):
+                    guildMembers.append(0)
+                randList = guildMembers
+            else:
+                randList = random.sample(guildMembers, randCount)
+
             for i in range(randCount):
-                if i >= len(randList):
-                    randList.append("nobody")
-                randUser = "<@!" + str(randList[i - 1].id) + ">"
-                msgOut = msgOut.replace("$rand", randUser, 1)
+                if randList[i-1] == 0:
+                    msgOut = msgOut.replace("$rand", "nobody", 1)
+                else:
+                    randUser = "<@!" + str(randList[i - 1].id) + ">"
+                    msgOut = msgOut.replace("$rand", randUser, 1)
 
         # Replace $item variables each with random inventory item
         itemCount = msgOut.count("$item") if msgOut is not None else 0

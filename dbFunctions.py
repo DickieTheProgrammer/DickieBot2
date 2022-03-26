@@ -421,6 +421,7 @@ class Connection:
         success = False
         known = False
         id = None
+        deleted = 0
 
         try:
             c = self.conn.execute(
@@ -451,9 +452,13 @@ class Connection:
         except sql.IntegrityError:
             success = False
 
-            c = self.conn.execute("""select ID from FACTS where MSG = ?""", (response,))
+            c = self.conn.execute("""select ID, DELETED from FACTS where MSG = ?""", (response,))
             results = c.fetchall()
             id = results[0][0]
+            deleted = results[0][1]
+
+            if deleted: 
+                self.undelFact(id, creator, creatorID)
 
             known = True
         except Exception as e:
@@ -462,16 +467,17 @@ class Connection:
             print(e)
             self.conn.rollback()
 
-        return (success, known, id)
+        return (success, known, id, deleted)
 
     def addFact(self, trigger, response, nsfw, creator, creatorID, reaction, match_anywhere):
         success = False
         known = False
         id = None
+        deleted = 0
 
         try:
             c = self.conn.execute(
-                """
+            """
             insert into FACTS (MSG, TRIGGER, NSFW, CREATOR, CREATED, CREATOR_ID, REACTION, MATCH_ANYWHERE)
             values (?,?,?,?,?,?,?,?)
             """,
@@ -507,11 +513,15 @@ class Connection:
             success = False
 
             c = self.conn.execute(
-                """select ID from FACTS where MSG = ? and trigger = ? and reaction = ?""",
+                """select ID, DELETED from FACTS where MSG = ? and trigger = ? and reaction = ?""",
                 (response, trigger, reaction),
             )
             results = c.fetchall()
             id = results[0][0]
+            deleted = results[0][1]
+
+            if deleted: 
+                self.undelFact(id, creator, creatorID)
 
             known = True
         except Exception as e:
@@ -520,7 +530,7 @@ class Connection:
             print(e)
             self.conn.rollback()
 
-        return (success, known, id)
+        return (success, known, id, deleted)
 
     def getFact(self, trigger, nsfw):
         msgOut = None
