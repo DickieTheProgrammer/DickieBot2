@@ -792,14 +792,14 @@ class Connection:
 
             if len(results) == 0:
 
-                changed = True
-
                 c = self.conn.execute(
                     """update FACTS set NSFW = ? where ID = ?""", (nsfw, id)
                 )
                 self.conn.commit()
 
-                success = True
+                changed = True
+
+            success = True
 
         except Exception as e:
             print(inspect.stack()[0][3])
