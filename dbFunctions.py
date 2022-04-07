@@ -66,6 +66,8 @@ class Connection:
                     USER            VARCHAR2(37),
                     EDITDATE        VARCHAR2(23), /* YYYY-MM-DD HH:MI:SS TZ */
                     USER_ID         VARCHAR2(37),
+                    OLDTRIGGER      VARCHAR2(2000),
+                    NEWTRIGGER      VARCHAR2(2000),
                     FOREIGN KEY (FACT) REFERENCES FACTS (ID)
                 )
             """
@@ -112,12 +114,12 @@ class Connection:
 
             self.conn.execute(
                 """
-                PRAGMA user_version = 2
+                PRAGMA user_version = 3
             """
             )
-            user_version = 2
+            user_version = 3
 
-        if user_version == 1:
+        if user_version <= 1:
             print("Upgrading to schema v2 (MATCH_ANYWHERE)")
             self.conn.execute(
                 """
@@ -130,6 +132,29 @@ class Connection:
             """
             )
             user_version = 2
+
+        if user_version <= 2:
+            print("Upgrading to schema v3 (TRIGGER HISTORY)")
+            self.conn.execute(
+                """
+                ALTER TABLE HISTORY ADD COLUMN OLDTRIGGER VARCHAR2(2000)
+            """
+            )
+            self.conn.execute(
+                """
+                ALTER TABLE HISTORY ADD COLUMN NEWTRIGGER VARCHAR2(2000)
+            """
+            )
+            self.conn.execute(
+                """UPDATE HISTORY SET OLDTRIGGER = (SELECT TRIGGER FROM FACTS WHERE ID = HISTORY.ID)"""
+            )
+            self.conn.commit()
+            self.conn.execute(
+                """
+                PRAGMA user_version = 3
+            """
+            )
+            user_version = 3
 
         print("I am leaving my schema-updating era")
 
@@ -440,8 +465,8 @@ class Connection:
 
             c = self.conn.execute(
                 """
-            insert into HISTORY (FACT, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
-            select ID, MSG, DELETED, NSFW, CREATOR, CREATED, CREATOR_ID from FACTS where ID = ?
+            insert into HISTORY (FACT, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID, NEWTRIGGER)
+            select ID, MSG, DELETED, NSFW, CREATOR, CREATED, CREATOR_ID, TRIGGER from FACTS where ID = ?
             """,
                 (id,),
             )
@@ -502,8 +527,9 @@ class Connection:
 
             c = self.conn.execute(
                 """
-            insert into HISTORY (FACT, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
-            select ID, MSG, DELETED, NSFW, CREATOR, CREATED, CREATOR_ID from FACTS where ID = ?""",
+            insert into HISTORY (FACT, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID, NEWTRIGGER)
+            select ID, MSG, DELETED, NSFW, CREATOR, CREATED, CREATOR_ID, TRIGGER from FACTS where ID = ?
+            """,
                 (id,),
             )
             self.conn.commit()
@@ -547,7 +573,8 @@ class Connection:
                     where DELETED = 0 and TRIGGER is null and NSFW in ("""
                     + ",".join(str(n) for n in sqlIn)
                     + """)
-                    order by RANDOM() limit 1"""
+                    order by RANDOM() limit 1
+                """
                 )
                 c = self.conn.execute(sql)
             else:
@@ -608,51 +635,65 @@ class Connection:
             print(inspect.stack()[1][3])
             print(e)
 
-    def modFact(self, id, pattern, repl, user, userID):
+    def modFact(self, id, pattern, repl, user, userID, subType):
         valid = known = matched = success = changed = False
-        oldResp = newResp = None
+        oldText = newText = None
+
+        colToChange = 'TRIGGER' if subType.lower() == 't' else 'MSG'
 
         try:
             c = self.conn.execute(
-                """select MSG from FACTS where id = ? limit 1""", (id,)
+                f"""select {colToChange} from FACTS where id = ? limit 1""", (id,)
             )
             results = c.fetchall()
             known = True if len(results) != 0 else False
-            oldResp = results[0][0]
+            oldText = results[0][0]
 
-            srch = re.search(r"%s" % pattern, oldResp, re.I)
+            srch = re.search(r"%s" % pattern, oldText, re.I)
             print(srch)
             print(pattern)
-            print(oldResp)
+            print(oldText)
             if srch is not None:
                 matched = True
 
                 try:
-                    newResp = re.sub(r"%s" % pattern, repl, oldResp, re.I).strip()
-                    if len(newResp) >= 4 and not newResp.startswith("!"):
+                    newText = re.sub(r"%s" % pattern, repl, oldText, re.I).strip()
+                    if len(newText) >= 4 and not newText.startswith("!"):
                         valid = True
 
-                        if newResp != oldResp:
-                            c = self.conn.execute(
-                                """update FACTS set MSG = ? where ID = ?""",
-                                (newResp, id),
-                            )
-
-                            c = self.conn.execute(
-                                """
-                            insert into HISTORY (FACT, OLDMSG, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
-                            select ID, ?, ? as NEWMSG, DELETED, NSFW, ? as USER, ? as EDITDATE, ? as USER_ID
-                            from FACTS where ID = ?
-                            """,
-                                (
-                                    oldResp,
-                                    newResp,
+                        queryParams = (
+                                    oldText,
+                                    newText,
                                     user,
                                     self.getCurrentDateTime(),
                                     userID,
                                     id,
-                                ),
+                                )
+
+                        if newText != oldText:
+                            c = self.conn.execute(
+                                f"""update FACTS set {colToChange} = ? where ID = ?""",
+                                (newText, id),
                             )
+
+                            if subType == 't':
+                                c = self.conn.execute(
+                                    """
+                                    insert into HISTORY (FACT, OLDTRIGGER, NEWTRIGGER, DELETED, NSFW, USER, EDITDATE, USER_ID, OLDMSG)
+                                    select ID, ? as OLDTRIGGER, ? as NEWTRIGGER, DELETED, NSFW, ? as USER, ? as EDITDATE, ? as USER_ID, MSG
+                                    from FACTS where ID = ?
+                                """,
+                                    queryParams
+                                )
+                            else:
+                                c = self.conn.execute(
+                                    """
+                                    insert into HISTORY (FACT, OLDMSG, NEWMSG, DELETED, NSFW, USER, EDITDATE, USER_ID, OLDTRIGGER)
+                                    select ID, ? as OLDMSG, ? as NEWMSG, DELETED, NSFW, ? as USER, ? as EDITDATE, ? as USER_ID, TRIGGER
+                                    from FACTS where ID = ?
+                                """,
+                                    queryParams
+                                )
                             self.conn.commit()
 
                             success = True
@@ -671,7 +712,7 @@ class Connection:
             print(inspect.stack()[1][3])
             print(e)
 
-        return [success, known, matched, valid, changed, oldResp, newResp]
+        return [success, known, matched, valid, changed, oldText, newText]
 
     def getLastFactID(self, guild, channel):
         lastID = 0
@@ -706,9 +747,9 @@ class Connection:
 
                 c = self.conn.execute(
                     """
-                insert into HISTORY (FACT, OLDMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
-                select ID as FACT, MSG as OLDMSG, DELETED, NSFW, ? as USER, ? as EDITDATE, ? as USER_ID
-                from FACTS where ID =?
+                    insert into HISTORY (FACT, OLDMSG, DELETED, NSFW, USER, EDITDATE, USER_ID, OLDTRIGGER)
+                    select ID as FACT, MSG as OLDMSG, DELETED, NSFW, ? as USER, ? as EDITDATE, ? as USER_ID, TRIGGER
+                    from FACTS where ID =?
                 """,
                     (user, self.getCurrentDateTime(), userID, id),
                 )
@@ -742,9 +783,9 @@ class Connection:
 
                 c = self.conn.execute(
                     """
-                insert into HISTORY (FACT, OLDMSG, DELETED, NSFW, USER, EDITDATE, USER_ID)
-                select ID, MSG, DELETED, NSFW, ? as USER, ? as EDITDATE, ? as USER_ID
-                from facts where ID =?
+                    insert into HISTORY (FACT, OLDMSG, DELETED, NSFW, USER, EDITDATE, USER_ID, OLDTRIGGER)
+                    select ID, MSG, DELETED, NSFW, ? as USER, ? as EDITDATE, ? as USER_ID, TRIGGER
+                    from facts where ID =?
                 """,
                     (user, self.getCurrentDateTime(), userID, id),
                 )
@@ -766,8 +807,8 @@ class Connection:
         try:
             c = self.conn.execute(
                 """
-            select a.FACT, b.TRIGGER, a.OLDMSG, a.NEWMSG, a.DELETED, a.NSFW, a.USER, a.EDITDATE
-            from HISTORY a, FACTS b where a.FACT = ? and a.FACT = b.ID order by a.ID desc
+                select a.FACT, b.TRIGGER, a.OLDMSG, a.NEWMSG, a.DELETED, a.NSFW, a.USER, a.EDITDATE
+                from HISTORY a, FACTS b where a.FACT = ? and a.FACT = b.ID order by a.ID desc
             """,
                 (id,),
             )
