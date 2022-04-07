@@ -193,18 +193,25 @@ class Factoids(commands.Cog):
         aliases=["modfact", "modthat"],
         description="""
                     Allows you to modify a factoid response by providing a substitution regex formatted s/pattern/replacement
-                    !mod <id> {substitution string}, if id blank, updates last called factoid""",
+                    !mod <id> {-t|r} {substitution string}, if id blank, updates last called factoid; if t/r option omitted, defaults to response update""",
         brief="Modify factoid response",
     )
     async def mod(self, ctx, id: typing.Optional[int] = 0, *, regEx):
         lastID = self.db.getLastFactID(ctx.guild.id, ctx.channel.id) if id == 0 else id
 
+        if regEx.startswith("-"):
+            cleanRegEx = regEx[2:].strip()
+            subType = regEx[1].lower()
+        else:
+            cleanRegEx = regEx
+            subType = 'r'
+
         try:
-            if regEx.endswith("//"):
-                s, pattern = regEx.strip("/").split("/")
+            if cleanRegEx.endswith("//"):
+                s, pattern = cleanRegEx.strip("/").split("/")
                 repl = ""
             else:
-                s, pattern, repl = regEx.strip("g").strip("/").split("/")
+                s, pattern, repl = cleanRegEx.strip("g").strip("/").split("/")
         except:  # noqa: E722
             await ctx.send(
                 "Syntax is !mod <id> {substitution string in form s/pattern/replacement}"
@@ -217,24 +224,23 @@ class Factoids(commands.Cog):
             repl,
             ctx.message.author.display_name,
             ctx.message.author.id,
+            subType,
         )
         print(results)
 
-        # results returned list = [success, known, matched, valid, changed, oldResp, newResp]
+        # results returned list = [success, known, matched, valid, changed, oldResp/Trig, newResp/Trig]
         if not results[1]:
             msgOut = f"Fact ID {lastID} not found."
         elif not results[2]:
-            msgOut = f"""Pattern "{pattern}" not found."""
+            msgOut = f"""Pattern "{pattern}" not found in {'response' if subType == 'r' else 'trigger'} for factoid ID {lastID}."""
         elif not results[3]:
-            msgOut = (
-                """Replacement must result in >=4 characters and not start with !"""
-            )
+            msgOut = "Invalid replacement. Trigger too short, response a command, or trying to convert to/from random factoid."
         elif not results[4]:
             msgOut = """Message wasn't changed by this substitution."""
         elif not results[0]:
             msgOut = f"Something went wrong modifying fact id {lastID}"
         else:
-            msgOut = f"""Successfully changed fact {lastID} response from\n{results[5]}\nto\n{results[6]}"""
+            msgOut = f"Successfully changed fact {lastID} {'response' if subType == 'r' else 'trigger'} from\n{results[5]}\nto\n{results[6]}"
 
         await ctx.send(msgOut)
 
