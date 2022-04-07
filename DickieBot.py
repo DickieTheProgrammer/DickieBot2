@@ -247,12 +247,13 @@ async def on_message(message):  # noqa: C901
 
         # Replace $rand variables each with random guild member or "nobody" if $rands outnumber guild members
         randCount = msgOut.count("$rand") if msgOut is not None else 0
+        print(f"Found {randCount} rand{'s' if randCount!=1 else ''}")
 
         if randCount:
             guildMembers = []
 
             for m in message.guild.members:
-                if (m.status in ("online","idle") and m.id != botID):
+                if (m.status in (discord.Status.online,discord.Status.idle) and m.id != botID):
                     print(f"Adding user {m.name} - {m.nick} - {m.id} to rand list")
                     guildMembers.append(m.id)
 
@@ -267,7 +268,7 @@ async def on_message(message):  # noqa: C901
                 if randList[i-1] == 0:
                     msgOut = msgOut.replace("$rand", "nobody", 1)
                 else:
-                    randUser = "<@!" + str(randList[i - 1].id) + ">"
+                    randUser = "<@!" + str(randList[i - 1]) + ">"
                     msgOut = msgOut.replace("$rand", randUser, 1)
 
         # Replace $item variables each with random inventory item
