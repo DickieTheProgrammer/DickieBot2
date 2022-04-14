@@ -103,7 +103,7 @@ class Factoids(commands.Cog):
             msgOut = f"Couldn't find fact ID {fact[0]}"
         else:
             result, changed = self.db.delFact(
-                fact[0], ctx.message.author.display_name, ctx.message.author.id, delNum
+                fact[0], ctx.message.author.name, ctx.message.author.id, delNum
             )
             if not result:
                 if not changed:
@@ -175,7 +175,7 @@ class Factoids(commands.Cog):
             nsfw = 1 if ctx.invoked_with == "onnsfwrand" else 0
 
             success, known, id, deleted = self.db.addRandFact(
-                args, nsfw, ctx.message.author.display_name, ctx.message.author.id
+                args, nsfw, ctx.message.author.name, ctx.message.author.id
             )
 
             if success:
@@ -225,7 +225,7 @@ class Factoids(commands.Cog):
             lastID,
             pattern,
             repl,
-            ctx.message.author.display_name,
+            ctx.message.author.name,
             ctx.message.author.id,
             subType,
         )
@@ -322,7 +322,7 @@ class Factoids(commands.Cog):
                     cleanTrigger,
                     response,
                     nsfw,
-                    ctx.message.author.display_name,
+                    ctx.message.author.name,
                     ctx.message.author.id,
                     0,
                     self.match_anywhere_by_default,
@@ -385,7 +385,7 @@ class Factoids(commands.Cog):
                     trigger,
                     reaction,
                     0,
-                    ctx.message.author.display_name,
+                    ctx.message.author.name,
                     ctx.message.author.id,
                     1,
                     self.match_anywhere_by_default,
@@ -435,7 +435,14 @@ class Factoids(commands.Cog):
 
         msgEmbed = discord.Embed(
             title=f"""{history[curPage-1][0]}""",
-            description=f"""Trigger: {st}{history[curPage-1][1]}{st}\nOldMsg: {st}{history[curPage-1][2]}{st}\nNewMsg: {st}{history[curPage-1][3]}{st}\nDeleted: {history[curPage-1][4]==1}\nNSFW: {history[curPage-1][5]==1}\nUser: {history[curPage-1][6]}\nDate: {history[curPage-1][7]}""",
+            description=f"""OldTrigger: {st}{history[curPage-1][1]}{st}
+                NewTrigger: {st}{history[curPage-1][8]}{st}
+                OldMsg: {st}{history[curPage-1][2]}{st}
+                NewMsg: {st}{history[curPage-1][3]}{st}
+                Deleted: {history[curPage-1][4]==1}
+                NSFW: {history[curPage-1][5]==1}
+                User: {history[curPage-1][6]}
+                Date: {history[curPage-1][7]}""",
             color=discord.Color.blue(),
         )
 

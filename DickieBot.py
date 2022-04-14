@@ -18,7 +18,8 @@ TOKEN = os.getenv("DISCORD_TOKEN")
 DATABASE = os.getenv("DATABASE")
 OWNER = os.getenv("OWNER")
 WEATHERAPIKEY = os.getenv("OWMAPIKEY")
-SOURCE = os.getenv("SOURCE")
+GH_USR_PW_REPO = os.getenv("GITHUB")
+GH_user, GH_token, GH_repo = GH_USR_PW_REPO.split(',')
 
 # optional config file options
 TRIGGER_ANYWHERE = int(os.getenv("TRIGGER_ANYWHERE", default=0)) == 1
@@ -36,7 +37,6 @@ bot = commands.Bot(
     help_command=help_command,
     intents=intents,
 )
-
 
 @bot.event
 async def on_ready():
@@ -247,9 +247,10 @@ async def on_message(message):  # noqa: C901
 
         # Replace $rand variables each with random guild member or "nobody" if $rands outnumber guild members
         randCount = msgOut.count("$rand") if msgOut is not None else 0
-        print(f"Found {randCount} rand{'s' if randCount!=1 else ''}")
 
         if randCount:
+            print(f"Found {randCount} rand{'s' if randCount!=1 else ''}")
+
             guildMembers = []
 
             for m in message.guild.members:
@@ -287,7 +288,7 @@ async def on_message(message):  # noqa: C901
 
 
 def main():
-    bot.add_cog(general.General(bot, SOURCE))
+    bot.add_cog(general.General(bot, GH_user, GH_token, GH_repo))
     bot.add_cog(info.Information(bot, WEATHERAPIKEY))
     bot.add_cog(inventory.Inventory(bot, db))
     bot.add_cog(factoids.Factoids(bot, db, OWNER, TRIGGER_ANYWHERE))

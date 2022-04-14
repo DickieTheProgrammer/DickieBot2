@@ -807,8 +807,8 @@ class Connection:
         try:
             c = self.conn.execute(
                 """
-                select a.FACT, b.TRIGGER, a.OLDMSG, a.NEWMSG, a.DELETED, a.NSFW, a.USER, a.EDITDATE
-                from HISTORY a, FACTS b where a.FACT = ? and a.FACT = b.ID order by a.ID desc
+                select a.FACT, a.OLDTRIGGER, a.OLDMSG, a.NEWMSG, a.DELETED, a.NSFW, a.USER, a.EDITDATE, a.NEWTRIGGER
+                from HISTORY a where a.FACT = ? order by a.ID desc
             """,
                 (id,),
             )
