@@ -8,6 +8,7 @@ import dbFunctions
 import parseUtil
 import discord
 import inspect
+import logging
 from discord.ext import commands
 
 DEFAULTPERC = 5
@@ -35,7 +36,7 @@ class Factoids(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        print("Factoids cog loaded")
+        logging.info("Factoids cog loaded")
 
     @commands.command(
         name="setfreq",
@@ -47,8 +48,6 @@ class Factoids(commands.Cog):
     )
     async def setfreq(self, ctx, frequency: typing.Optional[int] = DEFAULTPERC):
         user = ctx.message.author.id
-        print(self.bot.owner_id)
-        print(user)
 
         try:
             if self.owner == str(user) or ctx.guild.owner_id == user:
@@ -229,7 +228,6 @@ class Factoids(commands.Cog):
             ctx.message.author.id,
             subType,
         )
-        print(results)
 
         # results returned list = [success, known, matched, valid, changed, oldResp/Trig, newResp/Trig]
         if not results[1]:
@@ -375,9 +373,9 @@ class Factoids(commands.Cog):
                 try:
                     await ctx.message.add_reaction(parts[1].strip())
                 except Exception as e:
-                    print(inspect.stack()[0][3])
-                    print(inspect.stack()[1][3])
-                    print(e)
+                    logging.error(inspect.stack()[0][3])
+                    logging.error(inspect.stack()[1][3])
+                    logging.error(e)
                     await ctx.send("Invalid emoji... I think")
                     return
 

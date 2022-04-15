@@ -5,6 +5,7 @@ import re
 import inspect
 import time
 import sqlite3 as sql
+import logging
 from datetime import datetime
 from dateutil import tz
 
@@ -21,10 +22,10 @@ class Connection:
         """
         )
         user_version = c.fetchone()[0]
-        print("DB is open with schema version", user_version)
+        logging.info("DB is open with schema version", user_version)
 
         if user_version == 0:
-            print("Brand new db, or the db predates user_version tracking. creating tables.")
+            logging.info("Brand new db, or the db predates user_version tracking. creating tables.")
             self.conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS FACTS (
@@ -120,7 +121,7 @@ class Connection:
             user_version = 3
 
         if user_version <= 1:
-            print("Upgrading to schema v2 (MATCH_ANYWHERE)")
+            logging.info("Upgrading to schema v2 (MATCH_ANYWHERE)")
             self.conn.execute(
                 """
                 ALTER TABLE FACTS ADD COLUMN MATCH_ANYWHERE INTEGER NOT NULL DEFAULT 0
@@ -134,7 +135,7 @@ class Connection:
             user_version = 2
 
         if user_version <= 2:
-            print("Upgrading to schema v3 (TRIGGER HISTORY)")
+            logging.info("Upgrading to schema v3 (TRIGGER HISTORY)")
             self.conn.execute(
                 """
                 ALTER TABLE HISTORY ADD COLUMN OLDTRIGGER VARCHAR2(2000)
@@ -156,7 +157,7 @@ class Connection:
             )
             user_version = 3
 
-        print("I am leaving my schema-updating era")
+        logging.debug("I am leaving my schema-updating era")
 
     def close(self):
         self.conn.close()
@@ -187,9 +188,9 @@ class Connection:
                     self.delShutUpRecord(guild, channel)
 
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return found, duration, started
 
@@ -201,9 +202,9 @@ class Connection:
             )
             self.conn.commit()
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
     def addShutUpRecord(self, guild, channel, duration):
         success = False
@@ -219,9 +220,9 @@ class Connection:
             self.conn.commit()
             success = True
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return success
 
@@ -239,9 +240,9 @@ class Connection:
 
             success = True
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return success
 
@@ -261,9 +262,9 @@ class Connection:
 
             success = True
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return success
 
@@ -278,9 +279,9 @@ class Connection:
             self.conn.commit()
             success = True
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return success
 
@@ -294,9 +295,9 @@ class Connection:
             )
             freq = c.fetchall()[0][0]
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return freq
 
@@ -310,9 +311,9 @@ class Connection:
             )
             role = c.fetchall()[0][0]
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return role
 
@@ -327,9 +328,9 @@ class Connection:
             self.conn.commit()
             success = True
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return success
 
@@ -344,9 +345,9 @@ class Connection:
             self.conn.commit()
             success = True
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return success
 
@@ -363,12 +364,12 @@ class Connection:
             )
             self.conn.commit()
 
-            print("Given [" + item + "]")
+            logging.info("Given [" + item + "]")
             success = True
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return success
 
@@ -382,9 +383,9 @@ class Connection:
 
             itemList = c.fetchall()
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return itemList
 
@@ -413,9 +414,9 @@ class Connection:
                 self.conn.commit()
 
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return item
 
@@ -435,9 +436,9 @@ class Connection:
                     donors.append(i)
                 donors = list(set(donors))
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
             donors = None
 
         return donors
@@ -472,7 +473,7 @@ class Connection:
             )
             self.conn.commit()
 
-            print(f"Remembering {id}:[{response}]")
+            logging.info(f"Remembering {id}:[{response}]")
             success = True
         except sql.IntegrityError:
             success = False
@@ -523,7 +524,6 @@ class Connection:
             )
             results = c.fetchall()
             id = results[0][0]
-            print(id)
 
             c = self.conn.execute(
                 """
@@ -533,7 +533,7 @@ class Connection:
                 (id,),
             )
             self.conn.commit()
-            print(f"Remembering {id}: [{trigger}] is [{response}]")
+            logging.info(f"Remembering {id}: [{trigger}] is [{response}]")
             success = True
         except sql.IntegrityError:
             success = False
@@ -551,9 +551,9 @@ class Connection:
 
             known = True
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
             self.conn.rollback()
 
         return (success, known, id, deleted)
@@ -597,9 +597,9 @@ class Connection:
             else:
                 id, msgOut, reaction = results[0][0], results[0][1], results[0][2]
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return (id, msgOut, reaction)
 
@@ -617,9 +617,9 @@ class Connection:
 
         except Exception as e:
             results = None
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return results
 
@@ -631,9 +631,9 @@ class Connection:
             )
             self.conn.commit()
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
     def modFact(self, id, pattern, repl, user, userID, subType):
         valid = known = matched = success = changed = False
@@ -650,9 +650,7 @@ class Connection:
             oldText = results[0][0]
 
             srch = re.search(r"%s" % pattern, oldText, re.I)
-            print(srch)
-            print(pattern)
-            print(oldText)
+            
             if srch is not None:
                 matched = True
 
@@ -701,16 +699,16 @@ class Connection:
 
                 except Exception as e:
                     success = False
-                    print(inspect.stack()[0][3])
-                    print(inspect.stack()[1][3])
-                    print(e)
+                    logging.error(inspect.stack()[0][3])
+                    logging.error(inspect.stack()[1][3])
+                    logging.error(e)
                     self.conn.rollback()
 
         except Exception as e:
             success = False
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return [success, known, matched, valid, changed, oldText, newText]
 
@@ -725,9 +723,9 @@ class Connection:
             results = c.fetchall()
             lastID = results[0][0]
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return lastID
 
@@ -758,9 +756,9 @@ class Connection:
                 changed = True
                 success = True
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
             self.conn.rollback()
 
         return (success, changed)
@@ -793,9 +791,9 @@ class Connection:
 
                 success = True
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
             self.conn.rollback()
 
         return (success, undeleted)
@@ -815,9 +813,9 @@ class Connection:
             success = True
             results = c.fetchall()
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return (success, results)
 
@@ -843,8 +841,8 @@ class Connection:
             success = True
 
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.error(inspect.stack()[0][3])
+            logging.error(inspect.stack()[1][3])
+            logging.error(e)
 
         return (success, changed)

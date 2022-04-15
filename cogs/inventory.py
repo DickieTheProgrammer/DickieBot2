@@ -1,5 +1,6 @@
 import random
 import dbFunctions
+import logging
 from discord.ext import commands
 
 
@@ -23,7 +24,7 @@ class Inventory(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        print("Inventory cog loaded")
+        logging.info("Inventory cog loaded")
 
     @commands.command(
         name="inv",

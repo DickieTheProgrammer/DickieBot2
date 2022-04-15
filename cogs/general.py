@@ -1,6 +1,7 @@
 import random
 import requests
 import json
+import logging
 from discord.ext import commands
 
 
@@ -14,7 +15,7 @@ class General(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        print("General cog loaded")
+        logging.info("General cog loaded")
 
     @commands.command(
         name="roll",
