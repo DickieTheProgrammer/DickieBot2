@@ -14,6 +14,14 @@ from dbFunctions import Connection
 from dotenv import load_dotenv
 from discord.ext import commands
 
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(message)s',
+    handlers=[
+        logging.FileHandler("log\myapp.log"),
+        logging.StreamHandler()
+    ])
+
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 DATABASE = os.getenv("DATABASE")
@@ -168,9 +176,8 @@ async def on_message(message):  # noqa: C901
         await message.channel.send("""I don't _do_ "DM"s""")
         return
 
-    print("===========================================================")
-    print(message.content)
-    print(message)
+    logStmt = f"{message.guild.name}-{message.channel.name}-{message.author.name}: {message.content}".encode('ascii', 'ignore').decode('ascii')
+    logging.info(logStmt)
 
     # Standardize emotes to _<words>_
     msgIn = parseUtil.convertEmote(message.content)

@@ -4,3 +4,4 @@ dickiebase/DickieBot.db
 __pycache__/
 cogs/__pycache__/
 .venv
+log/

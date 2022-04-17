@@ -22,9 +22,7 @@ class Information(commands.Cog):
         except Exception as e:
             self.owm = None
             self.mgr = None
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
     def fandomRedirect(self, subdomain):
         redirectSubdomain = None
@@ -150,9 +148,7 @@ class Information(commands.Cog):
                 logging.log(f"""wiki "{searchTerm}"" didn't work, trying {choice}""")
                 page = wikipedia.page(choice)
             except Exception as e:
-                logging.error(inspect.stack()[0][3])
-                logging.error(inspect.stack()[1][3])
-                logging.error(e)
+                logging.exception("Exception occurred")
 
                 await ctx.send(f"No article found for '{searchTerm}'.")
 

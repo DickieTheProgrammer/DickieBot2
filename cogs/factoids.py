@@ -373,9 +373,7 @@ class Factoids(commands.Cog):
                 try:
                     await ctx.message.add_reaction(parts[1].strip())
                 except Exception as e:
-                    logging.error(inspect.stack()[0][3])
-                    logging.error(inspect.stack()[1][3])
-                    logging.error(e)
+                    logging.exception("Exception occurred.")
                     await ctx.send("Invalid emoji... I think")
                     return
 

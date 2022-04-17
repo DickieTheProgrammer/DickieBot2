@@ -22,7 +22,7 @@ class Connection:
         """
         )
         user_version = c.fetchone()[0]
-        logging.info("DB is open with schema version", user_version)
+        logging.info(f"DB is open with schema version {user_version}")
 
         if user_version == 0:
             logging.info("Brand new db, or the db predates user_version tracking. creating tables.")
@@ -188,9 +188,7 @@ class Connection:
                     self.delShutUpRecord(guild, channel)
 
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return found, duration, started
 
@@ -202,9 +200,7 @@ class Connection:
             )
             self.conn.commit()
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
     def addShutUpRecord(self, guild, channel, duration):
         success = False
@@ -220,9 +216,7 @@ class Connection:
             self.conn.commit()
             success = True
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return success
 
@@ -240,9 +234,7 @@ class Connection:
 
             success = True
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return success
 
@@ -262,9 +254,7 @@ class Connection:
 
             success = True
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return success
 
@@ -279,9 +269,7 @@ class Connection:
             self.conn.commit()
             success = True
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return success
 
@@ -295,9 +283,7 @@ class Connection:
             )
             freq = c.fetchall()[0][0]
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return freq
 
@@ -311,9 +297,7 @@ class Connection:
             )
             role = c.fetchall()[0][0]
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return role
 
@@ -328,9 +312,7 @@ class Connection:
             self.conn.commit()
             success = True
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return success
 
@@ -345,9 +327,7 @@ class Connection:
             self.conn.commit()
             success = True
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return success
 
@@ -367,9 +347,7 @@ class Connection:
             logging.info("Given [" + item + "]")
             success = True
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return success
 
@@ -383,9 +361,7 @@ class Connection:
 
             itemList = c.fetchall()
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return itemList
 
@@ -414,9 +390,7 @@ class Connection:
                 self.conn.commit()
 
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return item
 
@@ -436,9 +410,7 @@ class Connection:
                     donors.append(i)
                 donors = list(set(donors))
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
             donors = None
 
         return donors
@@ -488,9 +460,7 @@ class Connection:
 
             known = True
         except Exception as e:
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.exception("Exception occurred.")
             self.conn.rollback()
 
         return (success, known, id, deleted)
@@ -551,9 +521,7 @@ class Connection:
 
             known = True
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
             self.conn.rollback()
 
         return (success, known, id, deleted)
@@ -597,9 +565,7 @@ class Connection:
             else:
                 id, msgOut, reaction = results[0][0], results[0][1], results[0][2]
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return (id, msgOut, reaction)
 
@@ -617,9 +583,7 @@ class Connection:
 
         except Exception as e:
             results = None
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return results
 
@@ -631,9 +595,7 @@ class Connection:
             )
             self.conn.commit()
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
     def modFact(self, id, pattern, repl, user, userID, subType):
         valid = known = matched = success = changed = False
@@ -699,16 +661,12 @@ class Connection:
 
                 except Exception as e:
                     success = False
-                    logging.error(inspect.stack()[0][3])
-                    logging.error(inspect.stack()[1][3])
-                    logging.error(e)
+                    logging.exception("Exception occurred.")
                     self.conn.rollback()
 
         except Exception as e:
             success = False
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return [success, known, matched, valid, changed, oldText, newText]
 
@@ -723,9 +681,7 @@ class Connection:
             results = c.fetchall()
             lastID = results[0][0]
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return lastID
 
@@ -756,9 +712,7 @@ class Connection:
                 changed = True
                 success = True
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
             self.conn.rollback()
 
         return (success, changed)
@@ -791,9 +745,7 @@ class Connection:
 
                 success = True
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
             self.conn.rollback()
 
         return (success, undeleted)
@@ -813,9 +765,7 @@ class Connection:
             success = True
             results = c.fetchall()
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return (success, results)
 
@@ -841,8 +791,6 @@ class Connection:
             success = True
 
         except Exception as e:
-            logging.error(inspect.stack()[0][3])
-            logging.error(inspect.stack()[1][3])
-            logging.error(e)
+            logging.exception("Exception occurred.")
 
         return (success, changed)
