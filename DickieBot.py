@@ -16,11 +16,12 @@ from discord.ext import commands
 
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s %(levelname)s %(message)s',
+    format="%(asctime)s %(levelname)s %(message)s",
     handlers=[
-        logging.FileHandler("log\myapp.log"),
-        logging.StreamHandler()
-    ])
+        logging.FileHandler("log/myapp.log"),
+        logging.StreamHandler(),
+    ],
+)
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -28,7 +29,7 @@ DATABASE = os.getenv("DATABASE")
 OWNER = os.getenv("OWNER")
 WEATHERAPIKEY = os.getenv("OWMAPIKEY")
 GH_USR_PW_REPO = os.getenv("GITHUB")
-GH_user, GH_token, GH_repo = GH_USR_PW_REPO.split(',')
+GH_user, GH_token, GH_repo = GH_USR_PW_REPO.split(",")
 
 # optional config file options
 TRIGGER_ANYWHERE = int(os.getenv("TRIGGER_ANYWHERE", default=0)) == 1
@@ -46,6 +47,7 @@ bot = commands.Bot(
     help_command=help_command,
     intents=intents,
 )
+
 
 @bot.event
 async def on_ready():
@@ -176,7 +178,15 @@ async def on_message(message):  # noqa: C901
         await message.channel.send("""I don't _do_ "DM"s""")
         return
 
-    logStmt = f"{message.guild.name}-{message.channel.name}-{message.author.name}: {message.content}".encode('ascii', 'ignore').decode('ascii')
+    logStmt = (
+        f"{message.guild.name}-{message.channel.name}-{message.author.name}: {message.content}".encode(
+            "ascii", "ignore"
+        )
+        .decode("ascii")
+        .strip()
+    )
+    if message.attachments:
+        logStmt += "\n" + ";".join([a.url for a in message.attachments])
     logging.info(logStmt)
 
     # Standardize emotes to _<words>_
@@ -262,18 +272,21 @@ async def on_message(message):  # noqa: C901
             guildMembers = []
 
             for m in message.guild.members:
-                if (m.status in (discord.Status.online,discord.Status.idle) and m.id != botID):
+                if (
+                    m.status in (discord.Status.online, discord.Status.idle)
+                    and m.id != botID
+                ):
                     guildMembers.append(m.id)
 
             if randCount >= len(guildMembers):
-                for i in range(randCount-len(guildMembers)):
+                for i in range(randCount - len(guildMembers)):
                     guildMembers.append(0)
                 randList = guildMembers
             else:
                 randList = random.sample(guildMembers, randCount)
 
             for i in range(randCount):
-                if randList[i-1] == 0:
+                if randList[i - 1] == 0:
                     msgOut = msgOut.replace("$rand", "nobody", 1)
                 else:
                     randUser = "<@!" + str(randList[i - 1]) + ">"
