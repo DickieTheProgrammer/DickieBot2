@@ -7,11 +7,20 @@ import re
 import random
 import string
 import parseUtil
+import logging
 from cogs import general, factoids, inventory, info
 from discord import utils
 from dbFunctions import Connection
 from dotenv import load_dotenv
 from discord.ext import commands
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s %(levelname)s %(message)s',
+    handlers=[
+        logging.FileHandler("log\myapp.log"),
+        logging.StreamHandler()
+    ])
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -54,9 +63,9 @@ async def on_ready():
         for i in gld.text_channels:
             db.initGuild(gld.id, roleID, i.id)
 
-    print(f"{bot.user.name} has connected to Discord!")
-    print(f"{bot.user} is user")
-    print(f"{botID} is ID")
+    logging.info(f"{bot.user.name} has connected to Discord!")
+    logging.info(f"{bot.user} is user")
+    logging.info(f"{botID} is ID")
 
 
 @bot.event
@@ -67,9 +76,9 @@ async def on_guild_join(guild):
     roleID = 0 if role is None else role.id
     for i in guild.text_channels:
         if db.initGuild(guild.id, roleID, i.id):
-            print(f"""{i.name} in {guild.name} initialized.""")
+            logging.info(f"""{i.name} in {guild.name} initialized.""")
         else:
-            print(f"""{i.name} in {guild.name} was not initialized.""")
+            logging.info(f"""{i.name} in {guild.name} was not initialized.""")
 
 
 @bot.event
@@ -81,27 +90,27 @@ async def on_guild_channel_create(channel):
     role = utils.get(channel.guild.roles, name=botName)
     roleID = 0 if role is None else role.id
     if db.initGuild(channel.guild.id, roleID, channel.id):
-        print(f"""{channel.name} in {channel.guild.name} initialized.""")
+        logging.info(f"""{channel.name} in {channel.guild.name} initialized.""")
     else:
-        print(f"""{channel.name} in {channel.guild.name} was not initialized.""")
+        logging.info(f"""{channel.name} in {channel.guild.name} was not initialized.""")
 
 
 @bot.event
 async def on_guild_channel_delete(channel):
     # If channel removed, purge the record holding its state
     if db.deleteGuildState(channel.guild.id, channel.id):
-        print(f"""{channel.name} in {channel.guild.name} deleted.""")
+        logging.info(f"""{channel.name} in {channel.guild.name} deleted.""")
     else:
-        print(f"""{channel.name} in {channel.guild.name} was not deleted.""")
+        logging.info(f"""{channel.name} in {channel.guild.name} was not deleted.""")
 
 
 @bot.event
 async def on_guild_remove(guild):
     # If guild is removed, purge the record(s) holding its state
     if db.deleteGuildState(guild.id):
-        print(f"""{guild.name} deleted.""")
+        logging.info(f"""{guild.name} deleted.""")
     else:
-        print(f"""{guild.name} was not deleted.""")
+        logging.info(f"""{guild.name} was not deleted.""")
 
 
 @bot.event
@@ -113,7 +122,7 @@ async def on_member_update(before, after):
 
         if newRole.name == botName:
             for i in after.guild.text_channels:
-                print(f"""{i.name} in {after.guild.name} initialized.""")
+                logging.info(f"""{i.name} in {after.guild.name} initialized.""")
                 db.setBotRole(after.guild.id, newRole.id, i.id)
 
 
@@ -167,9 +176,8 @@ async def on_message(message):  # noqa: C901
         await message.channel.send("""I don't _do_ "DM"s""")
         return
 
-    print("===========================================================")
-    print(message.content)
-    print(message)
+    logStmt = f"{message.guild.name}-{message.channel.name}-{message.author.name}: {message.content}".encode('ascii', 'ignore').decode('ascii')
+    logging.info(logStmt)
 
     # Standardize emotes to _<words>_
     msgIn = parseUtil.convertEmote(message.content)
@@ -220,11 +228,11 @@ async def on_message(message):  # noqa: C901
 
         id, msgOut, reaction = db.getFact(msgIn, nsfwTag)
         if id:
-            print(f"Triggered {id} with {msgIn}")
+            logging.info(f"Triggered {id} with {msgIn}")
 
         # If factoid not triggered by incoming message, check for random
         randomNum = random.randint(1, 100)
-        print(
+        logging.debug(
             f"Random number {randomNum} <= {db.getFreq(message.guild.id, message.channel.id)} ({message.guild.name}|{message.channel.name})?"
         )
 
@@ -232,7 +240,7 @@ async def on_message(message):  # noqa: C901
             id, msgOut, reaction = db.getFact(None, nsfwTag)
             if msgOut.startswith("$item"):
                 cap = True
-            print(f"Triggered {id}")
+            logging.info(f"Triggered {id}")
 
         # Update called metrics for factoid if called
         if id is not None:
@@ -249,13 +257,12 @@ async def on_message(message):  # noqa: C901
         randCount = msgOut.count("$rand") if msgOut is not None else 0
 
         if randCount:
-            print(f"Found {randCount} rand{'s' if randCount!=1 else ''}")
+            logging.debug(f"Found {randCount} rand{'s' if randCount!=1 else ''}")
 
             guildMembers = []
 
             for m in message.guild.members:
                 if (m.status in (discord.Status.online,discord.Status.idle) and m.id != botID):
-                    print(f"Adding user {m.name} - {m.nick} - {m.id} to rand list")
                     guildMembers.append(m.id)
 
             if randCount >= len(guildMembers):

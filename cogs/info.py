@@ -9,6 +9,7 @@ import fandom
 import re
 import pyowm
 import inspect
+import logging
 from discord.ext import commands
 
 
@@ -21,9 +22,7 @@ class Information(commands.Cog):
         except Exception as e:
             self.owm = None
             self.mgr = None
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.exception("Exception occurred.")
 
     def fandomRedirect(self, subdomain):
         redirectSubdomain = None
@@ -35,7 +34,7 @@ class Information(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        print("Information cog loaded")
+        logging.info("Information cog loaded")
 
     @commands.command(
         name="weather",
@@ -116,7 +115,6 @@ class Information(commands.Cog):
 
                 if len(content) > 3000:
                     content = content[: (content[:3000].rfind(".") + 1)]
-                print(len(content))
         except:  # noqa: E722
             await ctx.send("Something went wrong, probably that wiki doesn't exist.")
             return
@@ -147,12 +145,10 @@ class Information(commands.Cog):
                 page = wikipedia.page(searchTerm)
             except wikipedia.DisambiguationError as e:
                 choice = random.choice(e.options)
-                print(f"""wiki "{searchTerm}"" didn't work, trying {choice}""")
+                logging.info(f"""wiki "{searchTerm}"" didn't work, trying {choice}""")
                 page = wikipedia.page(choice)
             except Exception as e:
-                print(inspect.stack()[0][3])
-                print(inspect.stack()[1][3])
-                print(e)
+                logging.exception("Exception occurred")
 
                 await ctx.send(f"No article found for '{searchTerm}'.")
 
