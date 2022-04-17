@@ -145,7 +145,7 @@ class Information(commands.Cog):
                 page = wikipedia.page(searchTerm)
             except wikipedia.DisambiguationError as e:
                 choice = random.choice(e.options)
-                logging.log(f"""wiki "{searchTerm}"" didn't work, trying {choice}""")
+                logging.info(f"""wiki "{searchTerm}"" didn't work, trying {choice}""")
                 page = wikipedia.page(choice)
             except Exception as e:
                 logging.exception("Exception occurred")
