@@ -2,7 +2,6 @@
 # This file handles the interaction with the sqlite database
 
 import re
-import inspect
 import time
 import sqlite3 as sql
 import logging
@@ -25,7 +24,9 @@ class Connection:
         logging.info(f"DB is open with schema version {user_version}")
 
         if user_version == 0:
-            logging.info("Brand new db, or the db predates user_version tracking. creating tables.")
+            logging.info(
+                "Brand new db, or the db predates user_version tracking. creating tables."
+            )
             self.conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS FACTS (
@@ -44,7 +45,7 @@ class Connection:
                 )
             """
             )
-    
+
             self.conn.execute(
                 """
                 CREATE UNIQUE INDEX IF NOT EXISTS FINDX ON FACTS (
@@ -54,7 +55,7 @@ class Connection:
                 )
             """
             )
-    
+
             self.conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS HISTORY (
@@ -73,7 +74,7 @@ class Connection:
                 )
             """
             )
-    
+
             self.conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS INVENTORY(
@@ -86,7 +87,7 @@ class Connection:
                 )
             """
             )
-    
+
             self.conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS GUILDSTATE(
@@ -100,7 +101,7 @@ class Connection:
                 )
             """
             )
-    
+
             self.conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS SILENCED(
@@ -187,7 +188,7 @@ class Connection:
                 else:
                     self.delShutUpRecord(guild, channel)
 
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
         return found, duration, started
@@ -199,7 +200,7 @@ class Connection:
                 (guild, channel),
             )
             self.conn.commit()
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
     def addShutUpRecord(self, guild, channel, duration):
@@ -215,7 +216,7 @@ class Connection:
             )
             self.conn.commit()
             success = True
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
         return success
@@ -233,7 +234,7 @@ class Connection:
             self.conn.commit()
 
             success = True
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
         return success
@@ -253,7 +254,7 @@ class Connection:
             self.conn.commit()
 
             success = True
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
         return success
@@ -268,7 +269,7 @@ class Connection:
             )
             self.conn.commit()
             success = True
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
         return success
@@ -282,7 +283,7 @@ class Connection:
                 (guild, channel),
             )
             freq = c.fetchall()[0][0]
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
         return freq
@@ -296,7 +297,7 @@ class Connection:
                 (guild, channel),
             )
             role = c.fetchall()[0][0]
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
         return role
@@ -311,7 +312,7 @@ class Connection:
             )
             self.conn.commit()
             success = True
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
         return success
@@ -326,7 +327,7 @@ class Connection:
             )
             self.conn.commit()
             success = True
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
         return success
@@ -346,7 +347,7 @@ class Connection:
 
             logging.info("Given [" + item + "]")
             success = True
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
         return success
@@ -360,7 +361,7 @@ class Connection:
             )
 
             itemList = c.fetchall()
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
         return itemList
@@ -389,7 +390,7 @@ class Connection:
 
                 self.conn.commit()
 
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
         return item
@@ -409,7 +410,7 @@ class Connection:
                 for i in results:
                     donors.append(i)
                 donors = list(set(donors))
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
             donors = None
 
@@ -445,27 +446,35 @@ class Connection:
             )
             self.conn.commit()
 
-            logging.info(f"Remembering {id}:[{response}]")
+            logging.info(
+                f"Remembering {id}:[{response}]".encode("ascii", "ignore").decode(
+                    "ascii"
+                )
+            )
             success = True
         except sql.IntegrityError:
             success = False
 
-            c = self.conn.execute("""select ID, DELETED from FACTS where MSG = ?""", (response,))
+            c = self.conn.execute(
+                """select ID, DELETED from FACTS where MSG = ?""", (response,)
+            )
             results = c.fetchall()
             id = results[0][0]
             deleted = results[0][1]
 
-            if deleted: 
+            if deleted:
                 self.undelFact(id, creator, creatorID)
 
             known = True
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
             self.conn.rollback()
 
         return (success, known, id, deleted)
 
-    def addFact(self, trigger, response, nsfw, creator, creatorID, reaction, match_anywhere):
+    def addFact(
+        self, trigger, response, nsfw, creator, creatorID, reaction, match_anywhere
+    ):
         success = False
         known = False
         id = None
@@ -473,7 +482,7 @@ class Connection:
 
         try:
             c = self.conn.execute(
-            """
+                """
             insert into FACTS (MSG, TRIGGER, NSFW, CREATOR, CREATED, CREATOR_ID, REACTION, MATCH_ANYWHERE)
             values (?,?,?,?,?,?,?,?)
             """,
@@ -516,11 +525,11 @@ class Connection:
             id = results[0][0]
             deleted = results[0][1]
 
-            if deleted: 
+            if deleted:
                 self.undelFact(id, creator, creatorID)
 
             known = True
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
             self.conn.rollback()
 
@@ -556,7 +565,13 @@ class Connection:
                     order by RANDOM() limit 1
                 """
                 )
-                c = self.conn.execute(sql, (trigger,trigger,))
+                c = self.conn.execute(
+                    sql,
+                    (
+                        trigger,
+                        trigger,
+                    ),
+                )
 
             results = c.fetchall()
 
@@ -564,7 +579,7 @@ class Connection:
                 id, msgOut, reaction = None, None, None
             else:
                 id, msgOut, reaction = results[0][0], results[0][1], results[0][2]
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
         return (id, msgOut, reaction)
@@ -581,7 +596,7 @@ class Connection:
             # Convert list of tuples into list
             results = [item for t in c.fetchall() for item in t]
 
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             results = None
             logging.exception("Exception occurred.")
 
@@ -594,14 +609,14 @@ class Connection:
                 (self.getCurrentDateTime(), id),
             )
             self.conn.commit()
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
     def modFact(self, id, pattern, repl, user, userID, subType):
         valid = known = matched = success = changed = False
         oldText = newText = None
 
-        colToChange = 'TRIGGER' if subType.lower() == 't' else 'MSG'
+        colToChange = "TRIGGER" if subType.lower() == "t" else "MSG"
 
         try:
             c = self.conn.execute(
@@ -612,7 +627,7 @@ class Connection:
             oldText = results[0][0]
 
             srch = re.search(r"%s" % pattern, oldText, re.I)
-            
+
             if srch is not None:
                 matched = True
 
@@ -622,13 +637,13 @@ class Connection:
                         valid = True
 
                         queryParams = (
-                                    oldText,
-                                    newText,
-                                    user,
-                                    self.getCurrentDateTime(),
-                                    userID,
-                                    id,
-                                )
+                            oldText,
+                            newText,
+                            user,
+                            self.getCurrentDateTime(),
+                            userID,
+                            id,
+                        )
 
                         if newText != oldText:
                             c = self.conn.execute(
@@ -636,14 +651,14 @@ class Connection:
                                 (newText, id),
                             )
 
-                            if subType == 't':
+                            if subType == "t":
                                 c = self.conn.execute(
                                     """
                                     insert into HISTORY (FACT, OLDTRIGGER, NEWTRIGGER, DELETED, NSFW, USER, EDITDATE, USER_ID, OLDMSG)
                                     select ID, ? as OLDTRIGGER, ? as NEWTRIGGER, DELETED, NSFW, ? as USER, ? as EDITDATE, ? as USER_ID, MSG
                                     from FACTS where ID = ?
                                 """,
-                                    queryParams
+                                    queryParams,
                                 )
                             else:
                                 c = self.conn.execute(
@@ -652,19 +667,19 @@ class Connection:
                                     select ID, ? as OLDMSG, ? as NEWMSG, DELETED, NSFW, ? as USER, ? as EDITDATE, ? as USER_ID, TRIGGER
                                     from FACTS where ID = ?
                                 """,
-                                    queryParams
+                                    queryParams,
                                 )
                             self.conn.commit()
 
                             success = True
                             changed = True
 
-                except Exception as e:
+                except Exception as e:  # noqa: F841
                     success = False
                     logging.exception("Exception occurred.")
                     self.conn.rollback()
 
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             success = False
             logging.exception("Exception occurred.")
 
@@ -680,7 +695,7 @@ class Connection:
             )
             results = c.fetchall()
             lastID = results[0][0]
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
         return lastID
@@ -711,7 +726,7 @@ class Connection:
 
                 changed = True
                 success = True
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
             self.conn.rollback()
 
@@ -744,7 +759,7 @@ class Connection:
                 self.conn.commit()
 
                 success = True
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
             self.conn.rollback()
 
@@ -764,7 +779,7 @@ class Connection:
             )
             success = True
             results = c.fetchall()
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
         return (success, results)
@@ -790,7 +805,7 @@ class Connection:
 
             success = True
 
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
         return (success, changed)
