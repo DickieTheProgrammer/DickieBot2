@@ -158,7 +158,7 @@ async def on_reaction_add(reaction, user):
         if r.emoji.startswith("👎"):
             thumbDown += r.emoji.count
 
-    if len(users) >= 3 and len(thumbDown) >= 3:
+    if len(users) >= 3 and thumbDown >= 3:
         print(f"Deleting message {msg.id}")
         await msg.delete()
 
