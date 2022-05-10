@@ -2,6 +2,7 @@ import random
 import requests
 import json
 import logging
+import typing
 from discord.ext import commands
 
 
@@ -22,7 +23,11 @@ class General(commands.Cog):
         description="Simulates dice rolls. Syntax is !roll {number}d{number}.",
         brief="Rolls dem bones - {number}d{number}",
     )
-    async def roll(self, ctx, dice: str):
+    async def roll(self, ctx, dice: typing.Optional[str] = None):
+        if dice is None:
+            await self.bot.invoke("Syntax is !roll {number}d{number}")
+            return
+
         # Rolls a dice in NdN format.
         try:
             rolls, limit = map(int, dice.split("d"))
@@ -59,7 +64,8 @@ class General(commands.Cog):
         description="""Submit an issue to bot's GitHub.
         Usage: !issue|bug {title} -b {body}. If -b omitted, all args are body and generic title generated.
         Username appended to title and truncated if exceeding 256 char.
-        See GitHub's markdown at https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet.""",
+        See GitHub's markdown at https://github.com/adam-p/markdown-here/wiki/Markdown-Cheatsheet.
+        Please note offending factoid id if relevant.""",
         brief="Submit a bot issue",
     )
     async def issue(self, ctx, *, issueDesc):

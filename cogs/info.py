@@ -2,13 +2,11 @@ import discord
 import requests
 import asyncio
 import json
-import parseUtil
 import wikipedia
 import random
 import fandom
 import re
 import pyowm
-import inspect
 import logging
 from discord.ext import commands
 
@@ -19,7 +17,7 @@ class Information(commands.Cog):
 
         try:
             self.owm = pyowm.OWM(apiKey)
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             self.owm = None
             self.mgr = None
             logging.exception("Exception occurred.")
@@ -31,6 +29,22 @@ class Information(commands.Cog):
             redirectSubdomain = re.search(r"^https://(.*)\.fandom.*$", r.url).group(1)
 
         return redirectSubdomain
+
+    def convertLinkMarkdown(self, msgIn):
+        searchResults = re.findall(r"\[.+?\]", msgIn)
+        links = []
+        msgOut = msgIn
+
+        if len(searchResults) > 0:
+            links = list(set(searchResults))
+            for i in links:
+                msgOut = msgOut.replace(
+                    i,
+                    i
+                    + f"""(https://www.urbandictionary.com/define.php?term={i.strip('[').strip(']').replace(' ','%20')})""",
+                )
+
+        return msgOut
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -147,7 +161,7 @@ class Information(commands.Cog):
                 choice = random.choice(e.options)
                 logging.info(f"""wiki "{searchTerm}"" didn't work, trying {choice}""")
                 page = wikipedia.page(choice)
-            except Exception as e:
+            except Exception as e:  # noqa: F841
                 logging.exception("Exception occurred")
 
                 await ctx.send(f"No article found for '{searchTerm}'.")
@@ -212,14 +226,14 @@ class Information(commands.Cog):
         msgEmbed = discord.Embed(
             title=f"{contents[curPage-1]['word']}",
             url=f"{contents[curPage-1]['permalink']}",
-            description=parseUtil.convertLinkMarkdown(
+            description=self.convertLinkMarkdown(
                 f"{contents[curPage-1]['definition']}"
             ),
             color=discord.Color.blue(),
         )
         msgEmbed.add_field(
             name="Example",
-            value=parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['example']}"),
+            value=self.convertLinkMarkdown(f"{contents[curPage-1]['example']}"),
             inline=False,
         )
         msgEmbed.set_footer(
@@ -244,14 +258,14 @@ class Information(commands.Cog):
                     msgEmbed = discord.Embed(
                         title=f"{contents[curPage-1]['word']}",
                         url=f"{contents[curPage-1]['permalink']}",
-                        description=parseUtil.convertLinkMarkdown(
+                        description=self.convertLinkMarkdown(
                             f"{contents[curPage-1]['definition']}"
                         ),
                         color=discord.Color.blue(),
                     )
                     msgEmbed.add_field(
                         name="Example",
-                        value=parseUtil.convertLinkMarkdown(
+                        value=self.convertLinkMarkdown(
                             f"{contents[curPage-1]['example']}"
                         ),
                         inline=False,
@@ -269,14 +283,14 @@ class Information(commands.Cog):
                     msgEmbed = discord.Embed(
                         title=f"{contents[curPage-1]['word']}",
                         url=f"{contents[curPage-1]['permalink']}",
-                        description=parseUtil.convertLinkMarkdown(
+                        description=self.convertLinkMarkdown(
                             f"{contents[curPage-1]['definition']}"
                         ),
                         color=discord.Color.blue(),
                     )
                     msgEmbed.add_field(
                         name="Example",
-                        value=parseUtil.convertLinkMarkdown(
+                        value=self.convertLinkMarkdown(
                             f"{contents[curPage-1]['example']}"
                         ),
                         inline=False,

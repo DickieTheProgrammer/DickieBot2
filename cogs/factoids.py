@@ -7,7 +7,6 @@ import time
 import dbFunctions
 import parseUtil
 import discord
-import inspect
 import logging
 from discord.ext import commands
 
@@ -15,7 +14,9 @@ DEFAULTPERC = 5
 
 
 class Factoids(commands.Cog):
-    def __init__(self, bot, db: dbFunctions.Connection, owner, match_anywhere_by_default):
+    def __init__(
+        self, bot, db: dbFunctions.Connection, owner, match_anywhere_by_default
+    ):
         self.bot = bot
         self.db = db
         self.owner = owner
@@ -165,7 +166,13 @@ class Factoids(commands.Cog):
         description="""Give me something random to do/say. Uses the same variables as !on.\nUse !onrandnsfw for nsfw factoids.""",
         brief="Give me something to randomly blurt.",
     )
-    async def onrand(self, ctx, *, args: str):
+    async def onrand(self, ctx, *, args: str = None):
+        if args is None:
+            await ctx.send(
+                "Usage is !onrand <thing to say>. Be mindful of discord markdown."
+            )
+            return
+
         botCommand = True if args.startswith("!") else False
 
         if botCommand:
@@ -182,7 +189,9 @@ class Factoids(commands.Cog):
             else:
                 if known:
                     if deleted:
-                        msgOut = f"""I've undeleted id {id} which matched this factoid."""
+                        msgOut = (
+                            f"""I've undeleted id {id} which matched this factoid."""
+                        )
                     else:
                         msgOut = f"""Oh, I already know that. It's ID {id}."""
                 else:
@@ -206,7 +215,7 @@ class Factoids(commands.Cog):
             subType = regEx[1].lower()
         else:
             cleanRegEx = regEx
-            subType = 'r'
+            subType = "r"
 
         try:
             if cleanRegEx.endswith("//"):
@@ -280,7 +289,7 @@ class Factoids(commands.Cog):
                     Using -react will expect a single emoji as the response arg. All reactions are SFW.""",
         brief="Teach me to respond to something",
     )
-    async def on(self, ctx, *, args):
+    async def on(self, ctx, *, args):  # noqa: C901
         usage = "Usage is !on<nsfw> trigger -say|react response."
 
         if args.find("-say") > 0:
@@ -372,7 +381,7 @@ class Factoids(commands.Cog):
             else:
                 try:
                     await ctx.message.add_reaction(parts[1].strip())
-                except Exception as e:
+                except Exception as e:  # noqa: F841
                     logging.exception("Exception occurred.")
                     await ctx.send("Invalid emoji... I think")
                     return

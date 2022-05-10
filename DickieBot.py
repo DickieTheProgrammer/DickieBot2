@@ -35,7 +35,6 @@ GH_user, GH_token, GH_repo = GH_USR_PW_REPO.split(",")
 TRIGGER_ANYWHERE = int(os.getenv("TRIGGER_ANYWHERE", default=0)) == 1
 
 intents = discord.Intents.all()
-
 db = Connection(DATABASE)
 
 botID = None
@@ -78,9 +77,9 @@ async def on_guild_join(guild):
     roleID = 0 if role is None else role.id
     for i in guild.text_channels:
         if db.initGuild(guild.id, roleID, i.id):
-            logging.info(f"""{i.name} in {guild.name} initialized.""")
+            logging.info(f"{i.name} in {guild.name} initialized.")
         else:
-            logging.info(f"""{i.name} in {guild.name} was not initialized.""")
+            logging.info(f"{i.name} in {guild.name} was not initialized.")
 
 
 @bot.event
@@ -92,27 +91,27 @@ async def on_guild_channel_create(channel):
     role = utils.get(channel.guild.roles, name=botName)
     roleID = 0 if role is None else role.id
     if db.initGuild(channel.guild.id, roleID, channel.id):
-        logging.info(f"""{channel.name} in {channel.guild.name} initialized.""")
+        logging.info(f"{channel.name} in {channel.guild.name} initialized.")
     else:
-        logging.info(f"""{channel.name} in {channel.guild.name} was not initialized.""")
+        logging.info(f"{channel.name} in {channel.guild.name} was not initialized.")
 
 
 @bot.event
 async def on_guild_channel_delete(channel):
     # If channel removed, purge the record holding its state
     if db.deleteGuildState(channel.guild.id, channel.id):
-        logging.info(f"""{channel.name} in {channel.guild.name} deleted.""")
+        logging.info(f"{channel.name} in {channel.guild.name} deleted.")
     else:
-        logging.info(f"""{channel.name} in {channel.guild.name} was not deleted.""")
+        logging.info(f"{channel.name} in {channel.guild.name} was not deleted.")
 
 
 @bot.event
 async def on_guild_remove(guild):
     # If guild is removed, purge the record(s) holding its state
     if db.deleteGuildState(guild.id):
-        logging.info(f"""{guild.name} deleted.""")
+        logging.info(f"{guild.name} deleted.")
     else:
-        logging.info(f"""{guild.name} was not deleted.""")
+        logging.info(f"{guild.name} was not deleted.")
 
 
 @bot.event
@@ -124,15 +123,17 @@ async def on_member_update(before, after):
 
         if newRole.name == botName:
             for i in after.guild.text_channels:
-                logging.info(f"""{i.name} in {after.guild.name} initialized.""")
+                logging.info(f"{i.name} in {after.guild.name} initialized.")
                 db.setBotRole(after.guild.id, newRole.id, i.id)
 
 
 @bot.event
 async def on_reaction_add(reaction, user):
     users = []
-    thumbDown = []
+    thumbDown = 0
     msg = reaction.message
+
+    logging.info(f"{user.name} reacted to {msg.id} with {reaction.emoji.name}.")
 
     # If the message wasn't authored by bot or the emoji is non-standard, return
     if msg.author != bot.user or type(reaction.emoji) == discord.PartialEmoji:
@@ -155,9 +156,10 @@ async def on_reaction_add(reaction, user):
             if i not in users:
                 users.append(i.id)
         if r.emoji.startswith("👎"):
-            thumbDown.append(r.emoji)
+            thumbDown += r.emoji.count
 
     if len(users) >= 3 and len(thumbDown) >= 3:
+        print(f"Deleting message {msg.id}")
         await msg.delete()
 
 
@@ -169,15 +171,6 @@ async def on_message(message):  # noqa: C901
     reaction = 0
     cap = False
 
-    # Ignore bots (should include himself)
-    if message.author.bot:
-        return
-
-    # Reject DMs. May do something with this later.
-    if isinstance(message.channel, discord.channel.DMChannel):
-        await message.channel.send("""I don't _do_ "DM"s""")
-        return
-
     logStmt = (
         f"{message.guild.name}-{message.channel.name}-{message.author.name}: {message.content}".encode(
             "ascii", "ignore"
@@ -188,6 +181,15 @@ async def on_message(message):  # noqa: C901
     if message.attachments:
         logStmt += "\n" + ";".join([a.url for a in message.attachments])
     logging.info(logStmt)
+
+    # Ignore bots (should include himself)
+    if message.author.bot:
+        return
+
+    # Reject DMs. May do something with this later.
+    if isinstance(message.channel, discord.channel.DMChannel):
+        await message.channel.send("""I don't _do_ "DM"s""")
+        return
 
     # Standardize emotes to _<words>_
     msgIn = parseUtil.convertEmote(message.content)
@@ -267,7 +269,7 @@ async def on_message(message):  # noqa: C901
         randCount = msgOut.count("$rand") if msgOut is not None else 0
 
         if randCount:
-            logging.debug(f"Found {randCount} rand{'s' if randCount!=1 else ''}")
+            logging.debug(f"Found {randCount} rand{'s' if abs(randCount)!=1 else ''}")
 
             guildMembers = []
 
