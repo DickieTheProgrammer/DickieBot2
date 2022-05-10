@@ -8,6 +8,7 @@ import random
 import string
 import parseUtil
 import logging
+import emoji
 from cogs import general, factoids, inventory, info
 from discord import utils
 from dbFunctions import Connection
@@ -133,13 +134,15 @@ async def on_reaction_add(reaction, user):
     thumbDown = 0
     msg = reaction.message
 
-    logging.info(f"{user.name} reacted to {msg.id} with {reaction.emoji.name}.")
+    logging.info(
+        f"{user.name} reacted to {msg.id} with {emoji.demojize(reaction.emoji)}."
+    )
 
-    # If the message wasn't authored by bot or the emoji is non-standard, return
-    if msg.author != bot.user or type(reaction.emoji) == discord.PartialEmoji:
+    # If the emoji is non-standard, return
+    if type(reaction.emoji) == discord.PartialEmoji:
         return
 
-    if reaction.emoji in ("🤐", "🤫", "🔇"):
+    if reaction.emoji in ("🤐", "🤫", "🔇") and msg.author == bot.user:
         found, duration, started = db.getShutUpDuration(msg.guild.id, msg.channel.id)
         if found:
             await msg.add_reaction(emoji="\U0001f197")  # Ok
@@ -150,13 +153,14 @@ async def on_reaction_add(reaction, user):
                 await msg.add_reaction(emoji="⌚")
                 await msg.add_reaction(emoji="5️⃣")
 
+    # Check to see if the people want a message removed
     for r in msg.reactions:
         reactors = await r.users().flatten()
         for i in reactors:
             if i not in users:
                 users.append(i.id)
         if r.emoji.startswith("👎"):
-            thumbDown += r.emoji.count
+            thumbDown += r.count
 
     if len(users) >= 3 and thumbDown >= 3:
         print(f"Deleting message {msg.id}")
