@@ -7,14 +7,16 @@ import time
 import dbFunctions
 import parseUtil
 import discord
-import inspect
+import logging
 from discord.ext import commands
 
 DEFAULTPERC = 5
 
 
 class Factoids(commands.Cog):
-    def __init__(self, bot, db: dbFunctions.Connection, owner, match_anywhere_by_default):
+    def __init__(
+        self, bot, db: dbFunctions.Connection, owner, match_anywhere_by_default
+    ):
         self.bot = bot
         self.db = db
         self.owner = owner
@@ -35,7 +37,7 @@ class Factoids(commands.Cog):
 
     @commands.Cog.listener()
     async def on_ready(self):
-        print("Factoids cog loaded")
+        logging.info("Factoids cog loaded")
 
     @commands.command(
         name="setfreq",
@@ -47,8 +49,6 @@ class Factoids(commands.Cog):
     )
     async def setfreq(self, ctx, frequency: typing.Optional[int] = DEFAULTPERC):
         user = ctx.message.author.id
-        print(self.bot.owner_id)
-        print(user)
 
         try:
             if self.owner == str(user) or ctx.guild.owner_id == user:
@@ -103,7 +103,7 @@ class Factoids(commands.Cog):
             msgOut = f"Couldn't find fact ID {fact[0]}"
         else:
             result, changed = self.db.delFact(
-                fact[0], ctx.message.author.display_name, ctx.message.author.id, delNum
+                fact[0], ctx.message.author.name, ctx.message.author.id, delNum
             )
             if not result:
                 if not changed:
@@ -166,7 +166,13 @@ class Factoids(commands.Cog):
         description="""Give me something random to do/say. Uses the same variables as !on.\nUse !onrandnsfw for nsfw factoids.""",
         brief="Give me something to randomly blurt.",
     )
-    async def onrand(self, ctx, *, args: str):
+    async def onrand(self, ctx, *, args: str = None):
+        if args is None:
+            await ctx.send(
+                "Usage is !onrand <thing to say>. Be mindful of discord markdown."
+            )
+            return
+
         botCommand = True if args.startswith("!") else False
 
         if botCommand:
@@ -175,7 +181,7 @@ class Factoids(commands.Cog):
             nsfw = 1 if ctx.invoked_with == "onnsfwrand" else 0
 
             success, known, id, deleted = self.db.addRandFact(
-                args, nsfw, ctx.message.author.display_name, ctx.message.author.id
+                args, nsfw, ctx.message.author.name, ctx.message.author.id
             )
 
             if success:
@@ -183,7 +189,9 @@ class Factoids(commands.Cog):
             else:
                 if known:
                     if deleted:
-                        msgOut = f"""I've undeleted id {id} which matched this factoid."""
+                        msgOut = (
+                            f"""I've undeleted id {id} which matched this factoid."""
+                        )
                     else:
                         msgOut = f"""Oh, I already know that. It's ID {id}."""
                 else:
@@ -207,7 +215,7 @@ class Factoids(commands.Cog):
             subType = regEx[1].lower()
         else:
             cleanRegEx = regEx
-            subType = 'r'
+            subType = "r"
 
         try:
             if cleanRegEx.endswith("//"):
@@ -225,11 +233,10 @@ class Factoids(commands.Cog):
             lastID,
             pattern,
             repl,
-            ctx.message.author.display_name,
+            ctx.message.author.name,
             ctx.message.author.id,
             subType,
         )
-        print(results)
 
         # results returned list = [success, known, matched, valid, changed, oldResp/Trig, newResp/Trig]
         if not results[1]:
@@ -282,7 +289,7 @@ class Factoids(commands.Cog):
                     Using -react will expect a single emoji as the response arg. All reactions are SFW.""",
         brief="Teach me to respond to something",
     )
-    async def on(self, ctx, *, args):
+    async def on(self, ctx, *, args):  # noqa: C901
         usage = "Usage is !on<nsfw> trigger -say|react response."
 
         if args.find("-say") > 0:
@@ -322,7 +329,7 @@ class Factoids(commands.Cog):
                     cleanTrigger,
                     response,
                     nsfw,
-                    ctx.message.author.display_name,
+                    ctx.message.author.name,
                     ctx.message.author.id,
                     0,
                     self.match_anywhere_by_default,
@@ -374,10 +381,8 @@ class Factoids(commands.Cog):
             else:
                 try:
                     await ctx.message.add_reaction(parts[1].strip())
-                except Exception as e:
-                    print(inspect.stack()[0][3])
-                    print(inspect.stack()[1][3])
-                    print(e)
+                except Exception as e:  # noqa: F841
+                    logging.exception("Exception occurred.")
                     await ctx.send("Invalid emoji... I think")
                     return
 
@@ -385,7 +390,7 @@ class Factoids(commands.Cog):
                     trigger,
                     reaction,
                     0,
-                    ctx.message.author.display_name,
+                    ctx.message.author.name,
                     ctx.message.author.id,
                     1,
                     self.match_anywhere_by_default,
@@ -435,7 +440,14 @@ class Factoids(commands.Cog):
 
         msgEmbed = discord.Embed(
             title=f"""{history[curPage-1][0]}""",
-            description=f"""Trigger: {st}{history[curPage-1][1]}{st}\nOldMsg: {st}{history[curPage-1][2]}{st}\nNewMsg: {st}{history[curPage-1][3]}{st}\nDeleted: {history[curPage-1][4]==1}\nNSFW: {history[curPage-1][5]==1}\nUser: {history[curPage-1][6]}\nDate: {history[curPage-1][7]}""",
+            description=f"""OldTrigger: {st}{history[curPage-1][1]}{st}
+                NewTrigger: {st}{history[curPage-1][8]}{st}
+                OldMsg: {st}{history[curPage-1][2]}{st}
+                NewMsg: {st}{history[curPage-1][3]}{st}
+                Deleted: {history[curPage-1][4]==1}
+                NSFW: {history[curPage-1][5]==1}
+                User: {history[curPage-1][6]}
+                Date: {history[curPage-1][7]}""",
             color=discord.Color.blue(),
         )
 

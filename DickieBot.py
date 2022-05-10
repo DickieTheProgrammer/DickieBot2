@@ -7,24 +7,35 @@ import re
 import random
 import string
 import parseUtil
+import logging
+import emoji
 from cogs import general, factoids, inventory, info
 from discord import utils
 from dbFunctions import Connection
 from dotenv import load_dotenv
 from discord.ext import commands
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+    handlers=[
+        logging.FileHandler("log/myapp.log"),
+        logging.StreamHandler(),
+    ],
+)
+
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 DATABASE = os.getenv("DATABASE")
 OWNER = os.getenv("OWNER")
 WEATHERAPIKEY = os.getenv("OWMAPIKEY")
-SOURCE = os.getenv("SOURCE")
+GH_USR_PW_REPO = os.getenv("GITHUB")
+GH_user, GH_token, GH_repo = GH_USR_PW_REPO.split(",")
 
 # optional config file options
 TRIGGER_ANYWHERE = int(os.getenv("TRIGGER_ANYWHERE", default=0)) == 1
 
 intents = discord.Intents.all()
-
 db = Connection(DATABASE)
 
 botID = None
@@ -54,9 +65,9 @@ async def on_ready():
         for i in gld.text_channels:
             db.initGuild(gld.id, roleID, i.id)
 
-    print(f"{bot.user.name} has connected to Discord!")
-    print(f"{bot.user} is user")
-    print(f"{botID} is ID")
+    logging.info(f"{bot.user.name} has connected to Discord!")
+    logging.info(f"{bot.user} is user")
+    logging.info(f"{botID} is ID")
 
 
 @bot.event
@@ -67,9 +78,9 @@ async def on_guild_join(guild):
     roleID = 0 if role is None else role.id
     for i in guild.text_channels:
         if db.initGuild(guild.id, roleID, i.id):
-            print(f"""{i.name} in {guild.name} initialized.""")
+            logging.info(f"{i.name} in {guild.name} initialized.")
         else:
-            print(f"""{i.name} in {guild.name} was not initialized.""")
+            logging.info(f"{i.name} in {guild.name} was not initialized.")
 
 
 @bot.event
@@ -81,27 +92,27 @@ async def on_guild_channel_create(channel):
     role = utils.get(channel.guild.roles, name=botName)
     roleID = 0 if role is None else role.id
     if db.initGuild(channel.guild.id, roleID, channel.id):
-        print(f"""{channel.name} in {channel.guild.name} initialized.""")
+        logging.info(f"{channel.name} in {channel.guild.name} initialized.")
     else:
-        print(f"""{channel.name} in {channel.guild.name} was not initialized.""")
+        logging.info(f"{channel.name} in {channel.guild.name} was not initialized.")
 
 
 @bot.event
 async def on_guild_channel_delete(channel):
     # If channel removed, purge the record holding its state
     if db.deleteGuildState(channel.guild.id, channel.id):
-        print(f"""{channel.name} in {channel.guild.name} deleted.""")
+        logging.info(f"{channel.name} in {channel.guild.name} deleted.")
     else:
-        print(f"""{channel.name} in {channel.guild.name} was not deleted.""")
+        logging.info(f"{channel.name} in {channel.guild.name} was not deleted.")
 
 
 @bot.event
 async def on_guild_remove(guild):
     # If guild is removed, purge the record(s) holding its state
     if db.deleteGuildState(guild.id):
-        print(f"""{guild.name} deleted.""")
+        logging.info(f"{guild.name} deleted.")
     else:
-        print(f"""{guild.name} was not deleted.""")
+        logging.info(f"{guild.name} was not deleted.")
 
 
 @bot.event
@@ -113,21 +124,25 @@ async def on_member_update(before, after):
 
         if newRole.name == botName:
             for i in after.guild.text_channels:
-                print(f"""{i.name} in {after.guild.name} initialized.""")
+                logging.info(f"{i.name} in {after.guild.name} initialized.")
                 db.setBotRole(after.guild.id, newRole.id, i.id)
 
 
 @bot.event
 async def on_reaction_add(reaction, user):
     users = []
-    thumbDown = []
+    thumbDown = 0
     msg = reaction.message
 
-    # If the message wasn't authored by bot or the emoji is non-standard, return
-    if msg.author != bot.user or type(reaction.emoji) == discord.PartialEmoji:
+    logging.info(
+        f"{user.name} reacted to {msg.id} with {emoji.demojize(reaction.emoji)}."
+    )
+
+    # If the emoji is non-standard, return
+    if type(reaction.emoji) == discord.PartialEmoji:
         return
 
-    if reaction.emoji in ("🤐", "🤫", "🔇"):
+    if reaction.emoji in ("🤐", "🤫", "🔇") and msg.author == bot.user:
         found, duration, started = db.getShutUpDuration(msg.guild.id, msg.channel.id)
         if found:
             await msg.add_reaction(emoji="\U0001f197")  # Ok
@@ -138,15 +153,17 @@ async def on_reaction_add(reaction, user):
                 await msg.add_reaction(emoji="⌚")
                 await msg.add_reaction(emoji="5️⃣")
 
+    # Check to see if the people want a message removed
     for r in msg.reactions:
         reactors = await r.users().flatten()
         for i in reactors:
             if i not in users:
                 users.append(i.id)
         if r.emoji.startswith("👎"):
-            thumbDown.append(r.emoji)
+            thumbDown += r.count
 
-    if len(users) >= 3 and len(thumbDown) >= 3:
+    if len(users) >= 3 and thumbDown >= 3:
+        print(f"Deleting message {msg.id}")
         await msg.delete()
 
 
@@ -158,6 +175,17 @@ async def on_message(message):  # noqa: C901
     reaction = 0
     cap = False
 
+    logStmt = (
+        f"{message.guild.name}-{message.channel.name}-{message.author.name}: {message.content}".encode(
+            "ascii", "ignore"
+        )
+        .decode("ascii")
+        .strip()
+    )
+    if message.attachments:
+        logStmt += "\n" + ";".join([a.url for a in message.attachments])
+    logging.info(logStmt)
+
     # Ignore bots (should include himself)
     if message.author.bot:
         return
@@ -166,10 +194,6 @@ async def on_message(message):  # noqa: C901
     if isinstance(message.channel, discord.channel.DMChannel):
         await message.channel.send("""I don't _do_ "DM"s""")
         return
-
-    print("===========================================================")
-    print(message.content)
-    print(message)
 
     # Standardize emotes to _<words>_
     msgIn = parseUtil.convertEmote(message.content)
@@ -220,11 +244,11 @@ async def on_message(message):  # noqa: C901
 
         id, msgOut, reaction = db.getFact(msgIn, nsfwTag)
         if id:
-            print(f"Triggered {id} with {msgIn}")
+            logging.info(f"Triggered {id} with {msgIn}")
 
         # If factoid not triggered by incoming message, check for random
         randomNum = random.randint(1, 100)
-        print(
+        logging.debug(
             f"Random number {randomNum} <= {db.getFreq(message.guild.id, message.channel.id)} ({message.guild.name}|{message.channel.name})?"
         )
 
@@ -232,7 +256,7 @@ async def on_message(message):  # noqa: C901
             id, msgOut, reaction = db.getFact(None, nsfwTag)
             if msgOut.startswith("$item"):
                 cap = True
-            print(f"Triggered {id}")
+            logging.info(f"Triggered {id}")
 
         # Update called metrics for factoid if called
         if id is not None:
@@ -250,22 +274,26 @@ async def on_message(message):  # noqa: C901
         print(f"Found {randCount} rand{'s' if randCount!=1 else ''}")
 
         if randCount:
+            logging.debug(f"Found {randCount} rand{'s' if abs(randCount)!=1 else ''}")
+
             guildMembers = []
 
             for m in message.guild.members:
-                if (m.status in (discord.Status.online,discord.Status.idle) and m.id != botID):
-                    print(f"Adding user {m.name} - {m.nick} - {m.id} to rand list")
+                if (
+                    m.status in (discord.Status.online, discord.Status.idle)
+                    and m.id != botID
+                ):
                     guildMembers.append(m.id)
 
             if randCount >= len(guildMembers):
-                for i in range(randCount-len(guildMembers)):
+                for i in range(randCount - len(guildMembers)):
                     guildMembers.append(0)
                 randList = guildMembers
             else:
                 randList = random.sample(guildMembers, randCount)
 
             for i in range(randCount):
-                if randList[i-1] == 0:
+                if randList[i - 1] == 0:
                     msgOut = msgOut.replace("$rand", "nobody", 1)
                 else:
                     randUser = "<@!" + str(randList[i - 1]) + ">"
@@ -287,7 +315,7 @@ async def on_message(message):  # noqa: C901
 
 
 def main():
-    bot.add_cog(general.General(bot, SOURCE))
+    bot.add_cog(general.General(bot, GH_user, GH_token, GH_repo))
     bot.add_cog(info.Information(bot, WEATHERAPIKEY))
     bot.add_cog(inventory.Inventory(bot, db))
     bot.add_cog(factoids.Factoids(bot, db, OWNER, TRIGGER_ANYWHERE))

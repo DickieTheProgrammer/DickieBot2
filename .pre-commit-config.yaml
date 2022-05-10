@@ -1,6 +1,6 @@
 repos:
 - repo: https://github.com/pre-commit/pre-commit-hooks
-  rev: ''
+  rev: 'v4.2.0'
   hooks:
     - id: check-yaml
     - id: end-of-file-fixer
@@ -8,10 +8,10 @@ repos:
     - id: no-commit-to-branch
     - id: requirements-txt-fixer
 - repo: https://github.com/psf/black
-  rev: ''
+  rev: '22.3.0'
   hooks:
   - id: black
 - repo: https://github.com/pycqa/flake8
-  rev: ''
+  rev: '4.0.1'
   hooks:
   - id: flake8

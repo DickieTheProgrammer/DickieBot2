@@ -2,13 +2,12 @@ import discord
 import requests
 import asyncio
 import json
-import parseUtil
 import wikipedia
 import random
 import fandom
 import re
 import pyowm
-import inspect
+import logging
 from discord.ext import commands
 
 
@@ -18,12 +17,10 @@ class Information(commands.Cog):
 
         try:
             self.owm = pyowm.OWM(apiKey)
-        except Exception as e:
+        except Exception as e:  # noqa: F841
             self.owm = None
             self.mgr = None
-            print(inspect.stack()[0][3])
-            print(inspect.stack()[1][3])
-            print(e)
+            logging.exception("Exception occurred.")
 
     def fandomRedirect(self, subdomain):
         redirectSubdomain = None
@@ -33,9 +30,25 @@ class Information(commands.Cog):
 
         return redirectSubdomain
 
+    def convertLinkMarkdown(self, msgIn):
+        searchResults = re.findall(r"\[.+?\]", msgIn)
+        links = []
+        msgOut = msgIn
+
+        if len(searchResults) > 0:
+            links = list(set(searchResults))
+            for i in links:
+                msgOut = msgOut.replace(
+                    i,
+                    i
+                    + f"""(https://www.urbandictionary.com/define.php?term={i.strip('[').strip(']').replace(' ','%20')})""",
+                )
+
+        return msgOut
+
     @commands.Cog.listener()
     async def on_ready(self):
-        print("Information cog loaded")
+        logging.info("Information cog loaded")
 
     @commands.command(
         name="weather",
@@ -116,7 +129,6 @@ class Information(commands.Cog):
 
                 if len(content) > 3000:
                     content = content[: (content[:3000].rfind(".") + 1)]
-                print(len(content))
         except:  # noqa: E722
             await ctx.send("Something went wrong, probably that wiki doesn't exist.")
             return
@@ -147,12 +159,10 @@ class Information(commands.Cog):
                 page = wikipedia.page(searchTerm)
             except wikipedia.DisambiguationError as e:
                 choice = random.choice(e.options)
-                print(f"""wiki "{searchTerm}"" didn't work, trying {choice}""")
+                logging.info(f"""wiki "{searchTerm}"" didn't work, trying {choice}""")
                 page = wikipedia.page(choice)
-            except Exception as e:
-                print(inspect.stack()[0][3])
-                print(inspect.stack()[1][3])
-                print(e)
+            except Exception as e:  # noqa: F841
+                logging.exception("Exception occurred")
 
                 await ctx.send(f"No article found for '{searchTerm}'.")
 
@@ -216,14 +226,14 @@ class Information(commands.Cog):
         msgEmbed = discord.Embed(
             title=f"{contents[curPage-1]['word']}",
             url=f"{contents[curPage-1]['permalink']}",
-            description=parseUtil.convertLinkMarkdown(
+            description=self.convertLinkMarkdown(
                 f"{contents[curPage-1]['definition']}"
             ),
             color=discord.Color.blue(),
         )
         msgEmbed.add_field(
             name="Example",
-            value=parseUtil.convertLinkMarkdown(f"{contents[curPage-1]['example']}"),
+            value=self.convertLinkMarkdown(f"{contents[curPage-1]['example']}"),
             inline=False,
         )
         msgEmbed.set_footer(
@@ -248,14 +258,14 @@ class Information(commands.Cog):
                     msgEmbed = discord.Embed(
                         title=f"{contents[curPage-1]['word']}",
                         url=f"{contents[curPage-1]['permalink']}",
-                        description=parseUtil.convertLinkMarkdown(
+                        description=self.convertLinkMarkdown(
                             f"{contents[curPage-1]['definition']}"
                         ),
                         color=discord.Color.blue(),
                     )
                     msgEmbed.add_field(
                         name="Example",
-                        value=parseUtil.convertLinkMarkdown(
+                        value=self.convertLinkMarkdown(
                             f"{contents[curPage-1]['example']}"
                         ),
                         inline=False,
@@ -273,14 +283,14 @@ class Information(commands.Cog):
                     msgEmbed = discord.Embed(
                         title=f"{contents[curPage-1]['word']}",
                         url=f"{contents[curPage-1]['permalink']}",
-                        description=parseUtil.convertLinkMarkdown(
+                        description=self.convertLinkMarkdown(
                             f"{contents[curPage-1]['definition']}"
                         ),
                         color=discord.Color.blue(),
                     )
                     msgEmbed.add_field(
                         name="Example",
-                        value=parseUtil.convertLinkMarkdown(
+                        value=self.convertLinkMarkdown(
                             f"{contents[curPage-1]['example']}"
                         ),
                         inline=False,
