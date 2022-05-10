@@ -271,6 +271,7 @@ async def on_message(message):  # noqa: C901
 
         # Replace $rand variables each with random guild member or "nobody" if $rands outnumber guild members
         randCount = msgOut.count("$rand") if msgOut is not None else 0
+        print(f"Found {randCount} rand{'s' if randCount!=1 else ''}")
 
         if randCount:
             logging.debug(f"Found {randCount} rand{'s' if abs(randCount)!=1 else ''}")
