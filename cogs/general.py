@@ -86,7 +86,7 @@ class General(commands.Cog):
                 await ctx.send(
                     "Length of title + username exceeds 256 characters. Truncating."
                 )
-                body = f"Submitted title truncated. Full title: {title}\n\n{body}"
+                body = f"Submitted title truncated. Full title: {title}\n\n{body}\n\n{msgURL}"
 
             title = f"{title[:256-(len(author)+3)]} - {author}"
         else:

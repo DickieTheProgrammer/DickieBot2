@@ -134,24 +134,26 @@ async def on_reaction_add(reaction, user):
     thumbDown = 0
     msg = reaction.message
 
-    logging.info(
-        f"{user.name} reacted to {msg.id} with {emoji.demojize(reaction.emoji)}."
-    )
-
     # If the emoji is non-standard, return
-    if type(reaction.emoji) == discord.PartialEmoji:
+    if reaction.custom_emoji:
+        logging.info(
+            f"{user.name} reacted to {msg.id} with custom emoji id {reaction.emoji.id}({type(reaction.emoji)})."
+        )
         return
+    else:
+        logging.info(
+            f"{user.name} reacted to {msg.id} with {emoji.demojize(reaction.emoji)}."
+        )
 
+    # Some reactions trigger the equivalent of !shutup
     if reaction.emoji in ("🤐", "🤫", "🔇") and msg.author == bot.user:
         found, duration, started = db.getShutUpDuration(msg.guild.id, msg.channel.id)
         if found:
             await msg.add_reaction(emoji="\U0001f197")  # Ok
-        else:
-            success = db.addShutUpRecord(msg.guild.id, msg.channel.id, 5)
-            if success:
-                await msg.add_reaction(emoji="\U0001f197")  # Ok
-                await msg.add_reaction(emoji="⌚")
-                await msg.add_reaction(emoji="5️⃣")
+        elif db.addShutUpRecord(msg.guild.id, msg.channel.id, 5):
+            await msg.add_reaction(emoji="\U0001f197")  # Ok
+            await msg.add_reaction(emoji="⌚")
+            await msg.add_reaction(emoji="5️⃣")
 
     # Check to see if the people want a message removed
     for r in msg.reactions:
@@ -230,8 +232,8 @@ async def on_message(message):  # noqa: C901
 
     if id is None and randomNum <= freq:
         id, msgOut, reaction = db.getFact(None, nsfwTag)
-        if msgOut.startswith("$item"):
-            cap = True
+        cap = True if msgOut.startswith("$item") else False
+
         logging.info(
             f"({message.guild.name}|{message.channel.name}) Triggered {id} with num {randomNum} <= freq {freq}"
         )
@@ -241,9 +243,10 @@ async def on_message(message):  # noqa: C901
         db.updateLastFact(message.guild.id, id, message.channel.id)
         db.updateLastCalled(id)
 
-    # Replace $nick variables with message author
+    # Replace $nick variables with message author and replace $self in the response to appease Chazz
     if msgOut is not None:
         msgOut = msgOut.replace("$nick", "<@!" + str(message.author.id) + ">")
+        msgOut = parseUtil.selfVarToMention(msgOut, botID)
 
     # Replace $rand variables each with random guild member or "nobody" if $rands outnumber guild members
     randCount = msgOut.count("$rand") if msgOut is not None else 0

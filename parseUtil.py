@@ -50,3 +50,9 @@ def mentionToSelfVar(msgIn, botRole, botID):
     msgOut = msgOut.replace(role, "$self")
 
     return msgOut
+
+
+def selfVarToMention(msgIn, botID):
+    nick = "<@" + str(botID) + ">"
+    msgOut = msgIn.replace("$self", nick)
+    return msgOut
