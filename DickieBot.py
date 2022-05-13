@@ -163,20 +163,14 @@ async def on_reaction_add(reaction, user):
             thumbDown += r.count
 
     if len(users) >= 3 and thumbDown >= 3:
-        print(f"Deleting message {msg.id}")
+        logging.info(f"Deleting message {msg.id} by popular vote")
         await msg.delete()
 
 
 @bot.event
 async def on_message(message):  # noqa: C901
-    msgOut = None
-    botCommand = True if message.content.startswith("!") else False
-    id = None
-    reaction = 0
-    cap = False
-
     logStmt = (
-        f"{message.guild.name}-{message.channel.name}-{message.author.name}: {message.content}".encode(
+        f"{message.guild.name}-{message.channel.name}-{message.author.name}-{message.id}: {message.content}".encode(
             "ascii", "ignore"
         )
         .decode("ascii")
@@ -192,118 +186,76 @@ async def on_message(message):  # noqa: C901
 
     # Reject DMs. May do something with this later.
     if isinstance(message.channel, discord.channel.DMChannel):
-        await message.channel.send("""I don't _do_ "DM"s""")
+        await message.channel.send("""I don't _do_ "DM"s ...yet""")
         return
 
-    # Standardize emotes to _<words>_
-    msgIn = parseUtil.convertEmote(message.content)
+    if message.content.startswith("!"):
+        await bot.process_commands(message)
+        return
 
-    # Collapse message to one line
-    msgIn = re.sub(r"\n", " ", msgIn)
+    msgOut = None
+    id = None
+    reaction = 0
+    cap = False
 
-    # Convert notification reference to "$self" variable
-    msgIn = parseUtil.mentionToSelfVar(
-        msgIn, db.getBotRole(message.guild.id, message.channel.id), botID
-    )
-    # Discord removes spaces from between successive mentions, so we'll put one back if that's the case
-    msgIn = msgIn.replace("$self<", "$self <")
+    msgIn = cleanMsgIn(message.content, message)
 
     if msgIn.startswith("_gives $self") and msgIn.endswith("_"):
-        # Given Inventory item
-        itemRegex = re.compile(r"^_{1}(?:gives \$self )(.*)_{1}$")
-        item = itemRegex.match(msgIn).group(1).strip("!.?")
+        msgOut = inventoryCommand(msgIn, message)
+        await message.channel.send(msgOut)
+        return
 
-        # If given a url or an item containing an image, reject
-        if re.match(r"^<?https?:\/\/.*>?$", item, re.I) or re.match(
-            r".*<?https?:\/\/.*(.gif|.jpg|.png|.jpeg|.bmp)>?.*$", item, re.I
-        ):
-            msgOut = "_throws it on the ground_"
-        else:
-            if not db.addToInventory(
-                message.guild.id, message.author.display_name, item, message.author.id
-            ):
-                msgOut = "something went wrong"
-            else:
-                msgOut = "_added %s to his inventory_" % item
+    found, duration, started = db.getShutUpDuration(
+        message.guild.id, message.channel.id
+    )
+    if found:
+        return
 
-    elif not botCommand:
-        found, duration, started = db.getShutUpDuration(
-            message.guild.id, message.channel.id
-        )
-        if found:
-            return
+    nsfwTag = 1 if message.channel.is_nsfw() else 0
 
-        nsfwTag = 1 if message.channel.is_nsfw() else 0
+    # Check to see if factoid triggered
+    msgInParts = msgIn.split("$self")
+    msgIn = "$self".join(
+        e.translate(str.maketrans(dict.fromkeys(string.punctuation))).lower()
+        for e in msgInParts
+    ).strip()
 
-        # Check to see if factoid triggered
-        msgInParts = msgIn.split("$self")
-        msgIn = "$self".join(
-            e.translate(str.maketrans(dict.fromkeys(string.punctuation))).lower()
-            for e in msgInParts
-        ).strip()
+    id, msgOut, reaction = db.getFact(msgIn, nsfwTag)
+    if id:
+        logging.info(f"Triggered {id} with {msgIn}")
 
-        id, msgOut, reaction = db.getFact(msgIn, nsfwTag)
-        if id:
-            logging.info(f"Triggered {id} with {msgIn}")
+    # If factoid not triggered by incoming message, check for random
+    randomNum = random.randint(1, 100)
+    freq = db.getFreq(message.guild.id, message.channel.id)
 
-        # If factoid not triggered by incoming message, check for random
-        randomNum = random.randint(1, 100)
-        logging.debug(
-            f"Random number {randomNum} <= {db.getFreq(message.guild.id, message.channel.id)} ({message.guild.name}|{message.channel.name})?"
+    if id is None and randomNum <= freq:
+        id, msgOut, reaction = db.getFact(None, nsfwTag)
+        if msgOut.startswith("$item"):
+            cap = True
+        logging.info(
+            f"({message.guild.name}|{message.channel.name}) Triggered {id} with num {randomNum} <= freq {freq}"
         )
 
-        if id is None and randomNum <= db.getFreq(message.guild.id, message.channel.id):
-            id, msgOut, reaction = db.getFact(None, nsfwTag)
-            if msgOut.startswith("$item"):
-                cap = True
-            logging.info(f"Triggered {id}")
+    # Update called metrics for factoid if called
+    if id is not None:
+        db.updateLastFact(message.guild.id, id, message.channel.id)
+        db.updateLastCalled(id)
 
-        # Update called metrics for factoid if called
-        if id is not None:
-            db.updateLastFact(message.guild.id, id, message.channel.id)
-            db.updateLastCalled(id)
+    # Replace $nick variables with message author
+    if msgOut is not None:
+        msgOut = msgOut.replace("$nick", "<@!" + str(message.author.id) + ">")
 
-        # Replace $nick variables with message author
-        try:
-            msgOut = msgOut.replace("$nick", "<@!" + str(message.author.id) + ">")
-        except:  # noqa: E722
-            pass
+    # Replace $rand variables each with random guild member or "nobody" if $rands outnumber guild members
+    randCount = msgOut.count("$rand") if msgOut is not None else 0
+    if randCount:
+        logging.debug(f"Found {randCount} rand{'s' if abs(randCount)!=1 else ''}")
+        msgOut = replaceRands(msgOut, randCount, message)
 
-        # Replace $rand variables each with random guild member or "nobody" if $rands outnumber guild members
-        randCount = msgOut.count("$rand") if msgOut is not None else 0
-        print(f"Found {randCount} rand{'s' if randCount!=1 else ''}")
-
-        if randCount:
-            logging.debug(f"Found {randCount} rand{'s' if abs(randCount)!=1 else ''}")
-
-            guildMembers = []
-
-            for m in message.guild.members:
-                if (
-                    m.status in (discord.Status.online, discord.Status.idle)
-                    and m.id != botID
-                ):
-                    guildMembers.append(m.id)
-
-            if randCount >= len(guildMembers):
-                for i in range(randCount - len(guildMembers)):
-                    guildMembers.append(0)
-                randList = guildMembers
-            else:
-                randList = random.sample(guildMembers, randCount)
-
-            for i in range(randCount):
-                if randList[i - 1] == 0:
-                    msgOut = msgOut.replace("$rand", "nobody", 1)
-                else:
-                    randUser = "<@!" + str(randList[i - 1]) + ">"
-                    msgOut = msgOut.replace("$rand", randUser, 1)
-
-        # Replace $item variables each with random inventory item
-        itemCount = msgOut.count("$item") if msgOut is not None else 0
-        for i in range(itemCount):
-            randItem = db.getInventoryItem(message.guild.id)
-            msgOut = msgOut.replace("$item", randItem, 1)
+    # Replace $item variables each with random inventory item
+    itemCount = msgOut.count("$item") if msgOut is not None else 0
+    for i in range(itemCount):
+        randItem = db.getInventoryItem(message.guild.id)
+        msgOut = msgOut.replace("$item", randItem, 1)
 
     if msgOut is not None:
         if reaction == 1:
@@ -311,7 +263,72 @@ async def on_message(message):  # noqa: C901
         else:
             await message.channel.send(msgOut.capitalize() if cap else msgOut)
 
-    await bot.process_commands(message)
+
+def cleanMsgIn(msgIn, messageObj):
+    # Standardize emotes to _<words>_
+    msgIn = parseUtil.convertEmote(messageObj.content)
+
+    # Collapse message to one line
+    msgIn = re.sub(r"\n", " ", msgIn)
+
+    # Convert notification reference to "$self" variable
+    msgIn = parseUtil.mentionToSelfVar(
+        msgIn, db.getBotRole(messageObj.guild.id, messageObj.channel.id), botID
+    )
+    # Discord removes spaces from between successive mentions, so we'll put one back if that's the case
+    msgIn = msgIn.replace("$self<", "$self <")
+
+    return msgIn
+
+
+def inventoryCommand(msgIn, messageObj):
+    # Given Inventory item
+    itemRegex = re.compile(r"^_{1}(?:gives \$self )(.*)_{1}$")
+    item = itemRegex.match(msgIn).group(1).strip("!.?")
+
+    # If given a url or an item containing an image, reject
+    if re.match(r"^<?https?:\/\/.*>?$", item, re.I) or re.match(
+        r".*<?https?:\/\/.*(.gif|.jpg|.png|.jpeg|.bmp)>?.*$", item, re.I
+    ):
+        msgOut = "_throws it on the ground_"
+    else:
+        if not db.addToInventory(
+            messageObj.guild.id,
+            messageObj.author.display_name,
+            item,
+            messageObj.author.id,
+        ):
+            msgOut = "something went wrong"
+        else:
+            msgOut = "_added %s to his inventory_" % item
+
+    return msgOut
+
+
+def replaceRands(msgIn, randCount, messageObj):
+    guildMembers = []
+    if not randCount:
+        return msgIn
+
+    for m in messageObj.guild.members:
+        if m.status in (discord.Status.online, discord.Status.idle) and m.id != botID:
+            guildMembers.append(m.id)
+
+    if randCount >= len(guildMembers):
+        for i in range(randCount - len(guildMembers)):
+            guildMembers.append(0)
+        randList = guildMembers
+    else:
+        randList = random.sample(guildMembers, randCount)
+
+    for i in range(randCount):
+        if randList[i - 1] == 0:
+            msgOut = msgIn.replace("$rand", "nobody", 1)
+        else:
+            randUser = "<@!" + str(randList[i - 1]) + ">"
+            msgOut = msgIn.replace("$rand", randUser, 1)
+
+    return msgOut
 
 
 def main():
