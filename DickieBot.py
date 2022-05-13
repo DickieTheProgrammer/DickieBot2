@@ -134,13 +134,16 @@ async def on_reaction_add(reaction, user):
     thumbDown = 0
     msg = reaction.message
 
-    logging.info(
-        f"{user.name} reacted to {msg.id} with {emoji.demojize(reaction.emoji)}."
-    )
-
     # If the emoji is non-standard, return
-    if type(reaction.emoji) == discord.PartialEmoji:
+    if reaction.custom_emoji:
+        logging.info(
+            f"{user.name} reacted to {msg.id} with custom emoji id {reaction.emoji.id}({type(reaction.emoji)})."
+        )
         return
+    else:
+        logging.info(
+            f"{user.name} reacted to {msg.id} with {emoji.demojize(reaction.emoji)}."
+        )
 
     if reaction.emoji in ("🤐", "🤫", "🔇") and msg.author == bot.user:
         found, duration, started = db.getShutUpDuration(msg.guild.id, msg.channel.id)
