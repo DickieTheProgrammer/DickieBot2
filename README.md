@@ -1,4 +1,5 @@
 # DickieBot
+None of this shit makes any god-damned sense. 
 
 ## Running
 
