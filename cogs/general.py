@@ -60,7 +60,7 @@ class General(commands.Cog):
 
     @commands.command(
         name="issue",
-        aliases=["bug"],
+        aliases=["bug", "feature"],
         description="""Submit an issue to bot's GitHub.
         Usage: !issue|bug {title} -b {body}. If -b omitted, all args are body and generic title generated.
         Username appended to title and truncated if exceeding 256 char.
@@ -72,6 +72,7 @@ class General(commands.Cog):
         url = f"https://api.github.com/repos/{self.gh_user}/{self.gh_repo}/issues"
         msgURL = f"https://discord.com/channels/{ctx.guild.id}/{ctx.channel.id}/{ctx.message.id}"
         author = ctx.author.name
+        titlePrefix = f"{ctx.invoked_with.capitalize()} from {author}: "
 
         headers = {
             "Authorization": f"token {self.gh_token}",
@@ -82,15 +83,15 @@ class General(commands.Cog):
             title, body = issueDesc.split("-b")
 
             # Max title length 256. Appending delimiter and author name with truncation if necessary.
-            if len(title) + len(author) + 3 > 256:
+            if len(titlePrefix) + len(title) > 256:
                 await ctx.send(
                     "Length of title + username exceeds 256 characters. Truncating."
                 )
                 body = f"Submitted title truncated. Full title: {title}\n\n{body}\n\n{msgURL}"
 
-            title = f"{title[:256-(len(author)+3)]} - {author}"
+            title = f"{titlePrefix}{title[:256-(len(titlePrefix))]}"
         else:
-            title = f"Issue submitted by {ctx.author.name}"
+            title = titlePrefix.strip()
             body = f"{issueDesc}\n\n{msgURL}"
 
         issue = {"title": title, "body": body}
