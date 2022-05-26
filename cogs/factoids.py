@@ -257,7 +257,7 @@ class Factoids(commands.Cog):
     @commands.command(
         name="nsfw",
         aliases=["sfw"],
-        description="Toggles NSFW flag on factoid record.",
+        description="Sets NSFW flag on factoid record. !nsfw for true, !sfw for false",
         brief="or !sfw, mark factoid NSFW/SFW",
     )
     async def nsfw(self, ctx, id: typing.Optional[int] = 0):
