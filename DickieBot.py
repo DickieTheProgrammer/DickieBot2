@@ -57,6 +57,10 @@ async def on_ready():
     global botName
     botName = bot.user.name
 
+    await bot.change_presence(
+        activity=discord.Activity(type=discord.ActivityType.watching, name="you.")
+    )
+
     for gld in bot.guilds:
         # Sometimes the bot joins a server and automatically gets a role with the same name as him
         # If this happens, capture it and save the bot role
