@@ -93,9 +93,9 @@ class Factoids(commands.Cog):
         )
 
         delDesc = (
-            "delete" if ctx.invoked_with in ["delete", "del", "baleet"] else "undelete"
+            "delete" if ctx.invoked_with in ["delete", "del", "delfact"] else "undelete"
         )
-        delNum = 1 if ctx.invoked_with in ["delete", "del", "baleet"] else 0
+        delNum = 1 if ctx.invoked_with in ["delete", "del", "undelfact"] else 0
 
         if fact is None:
             msgOut = f"Something went wrong trying to {delDesc} fact ID {fact[0]}" ""
