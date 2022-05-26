@@ -243,6 +243,12 @@ async def on_message(message):  # noqa: C901
         db.updateLastFact(message.guild.id, id, message.channel.id)
         db.updateLastCalled(id)
 
+    # Replace $item variables each with random inventory item
+    itemCount = msgOut.count("$item") if msgOut is not None else 0
+    for i in range(itemCount):
+        randItem = db.getInventoryItem(message.guild.id)
+        msgOut = msgOut.replace("$item", randItem, 1)
+
     # Replace $nick variables with message author and replace $self in the response to appease Chazz
     if msgOut is not None:
         msgOut = msgOut.replace("$nick", "<@!" + str(message.author.id) + ">")
@@ -253,12 +259,6 @@ async def on_message(message):  # noqa: C901
     if randCount:
         logging.debug(f"Found {randCount} rand{'s' if abs(randCount)!=1 else ''}")
         msgOut = replaceRands(msgOut, randCount, message)
-
-    # Replace $item variables each with random inventory item
-    itemCount = msgOut.count("$item") if msgOut is not None else 0
-    for i in range(itemCount):
-        randItem = db.getInventoryItem(message.guild.id)
-        msgOut = msgOut.replace("$item", randItem, 1)
 
     if msgOut is not None:
         if reaction == 1:
