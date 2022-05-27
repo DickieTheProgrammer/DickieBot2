@@ -2,8 +2,9 @@ import discord
 import requests
 import asyncio
 import json
-import wikipedia
-import random
+
+# import wikipedia
+# import random
 import fandom
 import re
 import pyowm
@@ -146,37 +147,37 @@ class Information(commands.Cog):
 
         await ctx.send(embed=msgEmbed)
 
-    @commands.command(
-        name="wiki",
-        description="""Retrieves Wikipedia summary for the provided search term. Omitting search term returns random article summary.""",
-        brief="Get Wikipedia article summary",
-    )
-    async def wiki(self, ctx, *, searchTerm=None):
-        if searchTerm is None:
-            page = wikipedia.page(wikipedia.random(pages=1))
-        else:
-            try:
-                page = wikipedia.page(searchTerm)
-            except wikipedia.DisambiguationError as e:
-                choice = random.choice(e.options)
-                logging.info(f"""wiki "{searchTerm}"" didn't work, trying {choice}""")
-                page = wikipedia.page(choice)
-            except Exception as e:  # noqa: F841
-                logging.exception("Exception occurred")
-
-                await ctx.send(f"No article found for '{searchTerm}'.")
-
-                return
-
-        content = re.sub(r"\n", "\n\n", page.summary).strip()
-        msgEmbed = discord.Embed(
-            title=f"{page.title}",
-            url=f"{page.url}",
-            description=f"{content}",
-            color=discord.Color.blue(),
-        )
-
-        await ctx.send(embed=msgEmbed)
+    #    @commands.command(
+    #        name="wiki",
+    #        description="""Retrieves Wikipedia summary for the provided search term. Omitting search term returns random article summary.""",
+    #        brief="Get Wikipedia article summary",
+    #    )
+    #    async def wiki(self, ctx, *, searchTerm=None):
+    #        if searchTerm is None:
+    #            page = wikipedia.page(wikipedia.random(pages=1))
+    #        else:
+    #            try:
+    #                page = wikipedia.page(searchTerm)
+    #            except wikipedia.DisambiguationError as e:
+    #                choice = random.choice(e.options)
+    #                logging.info(f"""wiki "{searchTerm}"" didn't work, trying {choice}""")
+    #                page = wikipedia.page(choice)
+    #            except Exception as e:  # noqa: F841
+    #                logging.exception("Exception occurred")
+    #
+    #                await ctx.send(f"No article found for '{searchTerm}'.")
+    #
+    #                return
+    #
+    #        content = re.sub(r"\n", "\n\n", page.summary).strip()
+    #        msgEmbed = discord.Embed(
+    #            title=f"{page.title}",
+    #            url=f"{page.url}",
+    #            description=f"{content}",
+    #            color=discord.Color.blue(),
+    #        )
+    #
+    #        await ctx.send(embed=msgEmbed)
 
     @commands.command(
         name="ud",
