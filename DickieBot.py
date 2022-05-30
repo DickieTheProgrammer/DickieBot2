@@ -157,12 +157,15 @@ async def on_reaction_add(reaction, user):
 
     # Check to see if the people want a message removed
     for r in msg.reactions:
+        if not r.emoji.startswith("👎"):
+            continue
+
+        thumbDown += r.count
+
         reactors = await r.users().flatten()
         for i in reactors:
-            if i not in users:
+            if i.id not in users:
                 users.append(i.id)
-        if r.emoji.startswith("👎"):
-            thumbDown += r.count
 
     if len(users) >= 3 and thumbDown >= 3:
         logging.info(f"Deleting message {msg.id} by popular vote")
@@ -170,7 +173,7 @@ async def on_reaction_add(reaction, user):
 
 
 @bot.event
-async def on_message(message):  # noqa: C901
+async def on_message(message):
     logStmt = (
         f"{message.guild.name}-{message.channel.name}-{message.author.name}-{message.id}: {message.content}".encode(
             "ascii", "ignore"
