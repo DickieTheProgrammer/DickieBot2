@@ -314,7 +314,11 @@ def replaceRands(msgIn, randCount, messageObj):
         return msgIn
 
     for m in messageObj.guild.members:
-        if m.status in (discord.Status.online, discord.Status.idle) and m.id != botID:
+        if (
+            m.status in (discord.Status.online, discord.Status.idle)
+            and m.id != botID
+            and messageObj.author.id != m.id
+        ):
             guildMembers.append(m.id)
 
     if randCount >= len(guildMembers):
