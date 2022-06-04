@@ -535,18 +535,19 @@ class Connection:
 
         return (success, known, id, deleted)
 
-    def getFact(self, trigger, nsfw):
+    def getFact(self, trigger, nsfwIn):
         msgOut = None
         id = None
         reaction = None
+        nsfwOut = 0
 
-        sqlIn = [0] if nsfw == 0 else [0, 1]
+        sqlIn = [0] if nsfwIn == 0 else [0, 1]
 
         try:
             if trigger is None:
                 # Random Factoid
                 sql = (
-                    """select ID, MSG, REACTION from FACTS
+                    """select ID, MSG, REACTION, NSFW from FACTS
                     where DELETED = 0 and TRIGGER is null and NSFW in ("""
                     + ",".join(str(n) for n in sqlIn)
                     + """)
@@ -558,7 +559,7 @@ class Connection:
                 # Triggered Factoid
                 sql = (
                     """
-                    select ID, MSG, REACTION from FACTS
+                    select ID, MSG, REACTION, NSFW from FACTS
                     where DELETED = 0 and TRIGGER IS NOT NULL and (TRIGGER = ? or (MATCH_ANYWHERE = 1 and instr(?, TRIGGER))) and NSFW in ("""
                     + ",".join(str(n) for n in sqlIn)
                     + """)
@@ -576,13 +577,18 @@ class Connection:
             results = c.fetchall()
 
             if len(results) == 0:
-                id, msgOut, reaction = None, None, None
+                id, msgOut, reaction, nsfwOut = None, None, None, None
             else:
-                id, msgOut, reaction = results[0][0], results[0][1], results[0][2]
+                id, msgOut, reaction, nsfwOut = (
+                    results[0][0],
+                    results[0][1],
+                    results[0][2],
+                    results[0][3],
+                )
         except Exception as e:  # noqa: F841
             logging.exception("Exception occurred.")
 
-        return (id, msgOut, reaction)
+        return (id, msgOut, reaction, nsfwOut)
 
     def factInfo(self, id):
         try:
