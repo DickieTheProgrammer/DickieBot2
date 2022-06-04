@@ -269,7 +269,8 @@ async def on_message(message):
             await message.add_reaction(msgOut)
         else:
             mess = await message.channel.send(msgOut.capitalize() if cap else msgOut)
-            await mess.add_reaction("☣️")
+            if isNSFW:
+                await mess.add_reaction("☣️")
 
 
 def cleanMsgIn(msgIn, messageObj):
