@@ -161,12 +161,15 @@ async def on_reaction_add(reaction, user):
 
     # Check to see if the people want a message removed
     for r in msg.reactions:
+        if not r.emoji.startswith("👎"):
+            continue
+
+        thumbDown += r.count
+
         reactors = await r.users().flatten()
         for i in reactors:
-            if i not in users:
+            if i.id not in users:
                 users.append(i.id)
-        if r.emoji.startswith("👎"):
-            thumbDown += r.count
 
     if len(users) >= 3 and thumbDown >= 3:
         logging.info(f"Deleting message {msg.id} by popular vote")
@@ -174,7 +177,7 @@ async def on_reaction_add(reaction, user):
 
 
 @bot.event
-async def on_message(message):  # noqa: C901
+async def on_message(message):
     logStmt = (
         f"{message.guild.name}-{message.channel.name}-{message.author.name}-{message.id}: {message.content}".encode(
             "ascii", "ignore"
@@ -203,6 +206,7 @@ async def on_message(message):  # noqa: C901
     id = None
     reaction = 0
     cap = False
+    isNSFW = 0
 
     msgIn = cleanMsgIn(message.content, message)
 
@@ -226,7 +230,7 @@ async def on_message(message):  # noqa: C901
         for e in msgInParts
     ).strip()
 
-    id, msgOut, reaction = db.getFact(msgIn, nsfwTag)
+    id, msgOut, reaction, isNSFW = db.getFact(msgIn, nsfwTag)
     if id:
         logging.info(f"Triggered {id} with {msgIn}")
 
@@ -235,7 +239,7 @@ async def on_message(message):  # noqa: C901
     freq = db.getFreq(message.guild.id, message.channel.id)
 
     if id is None and randomNum <= freq:
-        id, msgOut, reaction = db.getFact(None, nsfwTag)
+        id, msgOut, reaction, isNSFW = db.getFact(None, nsfwTag)
         cap = True if msgOut.startswith("$item") else False
 
         logging.info(
@@ -268,7 +272,9 @@ async def on_message(message):  # noqa: C901
         if reaction == 1:
             await message.add_reaction(msgOut)
         else:
-            await message.channel.send(msgOut.capitalize() if cap else msgOut)
+            mess = await message.channel.send(msgOut.capitalize() if cap else msgOut)
+            if isNSFW:
+                await mess.add_reaction("☣️")
 
 
 def cleanMsgIn(msgIn, messageObj):
