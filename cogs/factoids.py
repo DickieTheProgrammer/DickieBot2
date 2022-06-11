@@ -74,8 +74,8 @@ class Factoids(commands.Cog):
     @commands.command(
         name="delete",
         aliases=["del", "undel", "undelete", "delfact", "undelfact"],
-        description="Toggles deleted flag on specified factoid or most recent triggered factoid if none specified.",
-        brief="or !undelete, toggles deleted/undeleted",
+        description="Sets deleted flag on factoid. !delete and !undelete on specified factoid or most recent triggered factoid if none specified.",
+        brief="or !undelete, sets deleted/undeleted",
     )
     async def delfact(self, ctx, id=None):
         if id is not None and not id.isnumeric():
@@ -93,9 +93,9 @@ class Factoids(commands.Cog):
         )
 
         delDesc = (
-            "delete" if ctx.invoked_with in ["delete", "del", "baleet"] else "undelete"
+            "delete" if ctx.invoked_with in ["delete", "del", "delfact"] else "undelete"
         )
-        delNum = 1 if ctx.invoked_with in ["delete", "del", "baleet"] else 0
+        delNum = 1 if ctx.invoked_with in ["delete", "del", "delfact"] else 0
 
         if fact is None:
             msgOut = f"Something went wrong trying to {delDesc} fact ID {fact[0]}" ""
@@ -257,7 +257,7 @@ class Factoids(commands.Cog):
     @commands.command(
         name="nsfw",
         aliases=["sfw"],
-        description="Toggles NSFW flag on factoid record.",
+        description="Sets NSFW flag on factoid record. !nsfw for true, !sfw for false",
         brief="or !sfw, mark factoid NSFW/SFW",
     )
     async def nsfw(self, ctx, id: typing.Optional[int] = 0):

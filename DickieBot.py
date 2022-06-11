@@ -57,6 +57,10 @@ async def on_ready():
     global botName
     botName = bot.user.name
 
+    await bot.change_presence(
+        activity=discord.Activity(type=discord.ActivityType.watching, name="you.")
+    )
+
     for gld in bot.guilds:
         # Sometimes the bot joins a server and automatically gets a role with the same name as him
         # If this happens, capture it and save the bot role
@@ -154,6 +158,14 @@ async def on_reaction_add(reaction, user):
             await msg.add_reaction(emoji="\U0001f197")  # Ok
             await msg.add_reaction(emoji="⌚")
             await msg.add_reaction(emoji="5️⃣")
+    # May mark factoid as NSFW with reaction
+    elif reaction.emoji == "☣️":
+        msgID = db.getLastFactID(msg.guild.id, msg.channel.id)
+        success, changed = db.toggleNSFW(msgID, 1)
+        if success:
+            await msg.add_reaction(emoji="\U0001f197")  # Ok
+            if changed:
+                await msg.add_reaction("✅")
 
     # Check to see if the people want a message removed
     for r in msg.reactions:

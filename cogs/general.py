@@ -60,7 +60,7 @@ class General(commands.Cog):
 
     @commands.command(
         name="issue",
-        aliases=["bug"],
+        aliases=["bug", "feature"],
         description="""Submit an issue to bot's GitHub.
         Usage: !issue|bug {title} -b {body}. If -b omitted, all args are body and generic title generated.
         Username appended to title and truncated if exceeding 256 char.
