@@ -159,7 +159,7 @@ async def on_reaction_add(reaction, user):
             await msg.add_reaction(emoji="⌚")
             await msg.add_reaction(emoji="5️⃣")
     # May mark factoid as NSFW with reaction
-    elif reaction.emoji == "☣️":
+    elif reaction.emoji == "☣️" and msg.author == bot.user:
         msgID = db.getLastFactID(msg.guild.id, msg.channel.id)
         success, changed = db.toggleNSFW(msgID, 1)
         if success:
