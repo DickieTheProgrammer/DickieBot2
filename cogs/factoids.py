@@ -535,14 +535,15 @@ class Factoids(commands.Cog):
 
             msgOut = msgOut + f" my current {duration} minute cooldown."
         else:
+            # I'll clean this up later. I'm tired.
             if shutUpDuration > 30 or shutUpDuration < 1:
                 msgOut = "I'm just gonna be quiet for 5 minutes."
+                success = self.db.addShutUpRecord(ctx.guild.id, ctx.channel.id, 5)
             else:
                 msgOut = f"""Okay, I'll shut up for {shutUpDuration} {'minutes' if shutUpDuration != 1 else 'minute'}."""
-
-            success = self.db.addShutUpRecord(
-                ctx.guild.id, ctx.channel.id, shutUpDuration
-            )
+                success = self.db.addShutUpRecord(
+                    ctx.guild.id, ctx.channel.id, shutUpDuration
+                )
 
             if not success:
                 msgOut = f"""Something went wrong shutting up for {shutUpDuration} {'minutes' if shutUpDuration != 1 else 'minute'}."""
