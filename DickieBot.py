@@ -158,14 +158,6 @@ async def on_reaction_add(reaction, user):
             await msg.add_reaction(emoji="\U0001f197")  # Ok
             await msg.add_reaction(emoji="⌚")
             await msg.add_reaction(emoji="5️⃣")
-    # May mark factoid as NSFW with reaction
-    elif reaction.emoji == "☣️":
-        msgID = db.getLastFactID(msg.guild.id, msg.channel.id)
-        success, changed = db.toggleNSFW(msgID, 1)
-        if success:
-            await msg.add_reaction(emoji="\U0001f197")  # Ok
-            if changed:
-                await msg.add_reaction("✅")
 
     # Check to see if the people want a message removed
     for r in msg.reactions:
