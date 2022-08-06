@@ -20,19 +20,19 @@ class General(commands.Cog):
 
     @commands.command(
         name="roll",
-        description="Simulates dice rolls. Syntax is !roll {number}d{number}.",
-        brief="Rolls dem bones - {number}d{number}",
+        description="Simulates dice rolls. Syntax is !roll {integer}d{integer}.",
+        brief="Rolls dem bones - {integer}d{integer}",
     )
     async def roll(self, ctx, dice: typing.Optional[str] = None):
         if dice is None:
-            await self.bot.invoke("Syntax is !roll {number}d{number}")
+            await self.bot.invoke("Syntax is !roll {integer}d{integer}")
             return
 
         # Rolls a dice in NdN format.
         try:
             rolls, limit = map(int, dice.split("d"))
         except Exception:
-            await ctx.send("Format has to be in {number}**d**{number}")
+            await ctx.send("Format has to be in {integer}**d**{integer}")
             return
 
         if rolls > 25:
