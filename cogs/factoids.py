@@ -178,7 +178,7 @@ class Factoids(commands.Cog):
         if botCommand:
             msgOut = "I'm not remembering bot commands."
         else:
-            nsfw = 1 if ctx.invoked_with == "onnsfwrand" else 0
+            nsfw = 1 if ctx.invoked_with == "onrandnsfw" else 0
 
             success, known, id, deleted = self.db.addRandFact(
                 args, nsfw, ctx.message.author.name, ctx.message.author.id
