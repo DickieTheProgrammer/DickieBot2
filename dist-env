@@ -1,0 +1,9 @@
+# never commit this file
+
+DISCORD_TOKEN="Your token Here!"
+DATABASE="yourtablesinwaiting.db"
+GITHUB=urname,urapikey,DickieBot2
+OWNER="discord-snowflake-id"
+OWMAPIKEY=""
+
+# https://discord.com/api/oauth2/authorize?client_id=955655070207328256&permissions=292057984064&scope=bot

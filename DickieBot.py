@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # DickieBot: The Impressionable Discord Bot
 
+import asyncio
 import os
 import discord
 import re
@@ -36,6 +37,7 @@ GH_user, GH_token, GH_repo = GH_USR_PW_REPO.split(",")
 TRIGGER_ANYWHERE = int(os.getenv("TRIGGER_ANYWHERE", default=0)) == 1
 
 intents = discord.Intents.all()
+
 db = Connection(DATABASE)
 
 botID = None
@@ -348,13 +350,13 @@ def replaceRands(msgIn, randCount, messageObj):
     return msgOut
 
 
-def main():
-    bot.add_cog(general.General(bot, GH_user, GH_token, GH_repo))
-    bot.add_cog(info.Information(bot, WEATHERAPIKEY))
-    bot.add_cog(inventory.Inventory(bot, db))
-    bot.add_cog(factoids.Factoids(bot, db, OWNER, TRIGGER_ANYWHERE))
-    bot.run(TOKEN)
+async def main():
+    await bot.add_cog(general.General(bot, GH_user, GH_token, GH_repo))
+    await bot.add_cog(info.Information(bot, WEATHERAPIKEY))
+    await bot.add_cog(inventory.Inventory(bot, db))
+    await bot.add_cog(factoids.Factoids(bot, db, OWNER, TRIGGER_ANYWHERE))
+    await bot.start(TOKEN)
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

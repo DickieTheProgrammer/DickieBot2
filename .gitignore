@@ -1,7 +1,8 @@
 config/
 *.env
+*.db
 dickiebase/DickieBot.db
 __pycache__/
 cogs/__pycache__/
 .venv
-log/
+*.code-workspace
