@@ -154,9 +154,10 @@ async def on_reaction_add(reaction, user):
         found, duration, started = db.getShutUpDuration(msg.guild.id, msg.channel.id)
         if found:
             await msg.add_reaction(emoji="\U0001f197")  # Ok
-        elif db.addShutUpRecord(msg.guild.id, msg.channel.id, 5):
+        elif db.addShutUpRecord(msg.guild.id, msg.channel.id, 15):
             await msg.add_reaction(emoji="\U0001f197")  # Ok
             await msg.add_reaction(emoji="⌚")
+            await msg.add_reaction(emoji="1️⃣")
             await msg.add_reaction(emoji="5️⃣")
 
     # Check to see if the people want a message removed
@@ -223,6 +224,9 @@ async def on_message(message):
 
     nsfwTag = 1 if message.channel.is_nsfw() else 0
 
+    # Try to prevent triggering "$item" factoids when inventory empty
+    omitNothing = 0 if len(db.getInventory(message.guild.id)) > 0 else 1
+
     # Check to see if factoid triggered
     msgInParts = msgIn.split("$self")
     msgIn = "$self".join(
@@ -230,7 +234,7 @@ async def on_message(message):
         for e in msgInParts
     ).strip()
 
-    id, msgOut, reaction, isNSFW = db.getFact(msgIn, nsfwTag)
+    id, msgOut, reaction, isNSFW = db.getFact(msgIn, nsfwTag, omitNothing)
     if id:
         logging.info(f"Triggered {id} with {msgIn}")
 
@@ -239,7 +243,7 @@ async def on_message(message):
     freq = db.getFreq(message.guild.id, message.channel.id)
 
     if id is None and randomNum <= freq:
-        id, msgOut, reaction, isNSFW = db.getFact(None, nsfwTag)
+        id, msgOut, reaction, isNSFW = db.getFact(None, nsfwTag, omitNothing)
         cap = True if msgOut.startswith("$item") else False
 
         logging.info(
