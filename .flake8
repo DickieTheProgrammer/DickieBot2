@@ -4,3 +4,5 @@ max-line-length = 88
 max-complexity = 18
 #select = B,C,E,F,W,T4,B9,N
 exclude=.venv,.git,dist,*egg,build,*pb2*.py
+per-file-ignores=
+       DickieBot.py:C901

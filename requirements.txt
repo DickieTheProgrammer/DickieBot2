@@ -1,5 +1,8 @@
 discord.py
+emoji
 fandom-py
 pyowm
+python-dateutil
+python-dotenv
 requests
 wikipedia
