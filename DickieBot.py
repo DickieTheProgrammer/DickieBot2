@@ -255,6 +255,12 @@ async def on_message(message):
         db.updateLastFact(message.guild.id, id, message.channel.id)
         db.updateLastCalled(id)
 
+    # Replace $1item variables with the same random inventory item
+    itemCount = msgOut.count("$1item") if msgOut is not None else 0
+    if itemCount > 0:
+        randItem = db.getInventoryItem(message.guild.id)
+        msgOut = msgOut.replace("$1item", randItem)
+        
     # Replace $item variables each with random inventory item
     itemCount = msgOut.count("$item") if msgOut is not None else 0
     for i in range(itemCount):
