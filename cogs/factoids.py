@@ -285,7 +285,8 @@ class Factoids(commands.Cog):
                     Using !onnsfw marks the response as NSFW and will not be triggered in SFW channels.
                     Use $self to refer to the bot in the trigger. i.e. !on "Hi $self" -say Hello.
                     Use $rand, $nick, and $item in response to sub in a random user, the triggering user, and an inventory item, respectively.
-                    $item consumes the inventory item.
+                    Use $1item to reference the same inventory item every instance.
+                    $item and $1item consume the inventory item.
                     Using -react will expect a single emoji as the response arg. All reactions are SFW.""",
         brief="Teach me to respond to something",
     )
