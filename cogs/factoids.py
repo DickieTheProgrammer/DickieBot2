@@ -512,7 +512,7 @@ class Factoids(commands.Cog):
         description="""Silences triggering of factoids for the duration provided, or 5 minutes if no duration provided. Max duration 30 min.""",
         brief="""Prevents triggering of factoids""",
     )
-    async def shutup(self, ctx, shutUpDuration: typing.Optional[int] = 5):
+    async def shutup(self, ctx, shutUpDuration: typing.Optional[int] = 15):
         found, duration, started = self.db.getShutUpDuration(
             ctx.guild.id, ctx.channel.id
         )

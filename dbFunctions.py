@@ -535,7 +535,7 @@ class Connection:
 
         return (success, known, id, deleted)
 
-    def getFact(self, trigger, nsfwIn):
+    def getFact(self, trigger, nsfwIn, omitNothing):
         msgOut = None
         id = None
         reaction = None
@@ -551,6 +551,11 @@ class Connection:
                     where DELETED = 0 and TRIGGER is null and NSFW in ("""
                     + ",".join(str(n) for n in sqlIn)
                     + """)
+                    and (("""
+                    + str(omitNothing)
+                    + """=1 and MSG not like '%$item%') or """
+                    + str(omitNothing)
+                    + """<>1)
                     order by RANDOM() limit 1
                 """
                 )
@@ -563,6 +568,11 @@ class Connection:
                     where DELETED = 0 and TRIGGER IS NOT NULL and (TRIGGER = ? or (MATCH_ANYWHERE = 1 and instr(?, TRIGGER))) and NSFW in ("""
                     + ",".join(str(n) for n in sqlIn)
                     + """)
+                    and (("""
+                    + str(omitNothing)
+                    + """=1 and MSG not like '%$item%') or """
+                    + str(omitNothing)
+                    + """<>1)
                     order by RANDOM() limit 1
                 """
                 )
