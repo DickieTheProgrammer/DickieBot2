@@ -342,12 +342,13 @@ def replaceRands(msgIn, randCount, messageObj):
     else:
         randList = random.sample(guildMembers, randCount)
 
+    msgOut = msgIn
     for i in range(randCount):
         if randList[i - 1] == 0:
-            msgOut = msgIn.replace("$rand", "nobody", 1)
+            msgOut = msgOut.replace("$rand", "nobody", 1)
         else:
             randUser = "<@!" + str(randList[i - 1]) + ">"
-            msgOut = msgIn.replace("$rand", randUser, 1)
+            msgOut = msgOut.replace("$rand", randUser, 1)
 
     return msgOut
 
