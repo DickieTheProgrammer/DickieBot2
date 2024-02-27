@@ -509,7 +509,7 @@ class Factoids(commands.Cog):
     @commands.command(
         name="shutup",
         aliases=["shaddup", "stfu"],
-        description="""Silences triggering of factoids for the duration provided, or 5 minutes if no duration provided. Max duration 30 min.""",
+        description="""Silences triggering of factoids for the duration provided, or 15 minutes if no duration provided. Max duration 30 min.""",
         brief="""Prevents triggering of factoids""",
     )
     async def shutup(self, ctx, shutUpDuration: typing.Optional[int] = 15):
@@ -531,7 +531,7 @@ class Factoids(commands.Cog):
             elif timeLeft < 120:
                 msgOut = """I've got over a minute left of"""
             else:
-                msgOut = f"""I've got over {math.floor(timeLeft/60)} minutes left of"""
+                msgOut = f"""I've got over {math.floor(timeLeft/60)} {'minutes' if math.floor(timeLeft/60) != 1 else 'minute'} left of"""
 
             msgOut = msgOut + f" my current {duration} minute cooldown."
         else:
